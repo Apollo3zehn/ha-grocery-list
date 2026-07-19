@@ -1,0 +1,42 @@
+# Developer-maintained unit definitions for structured quantities.
+# Each unit has a stable id and en/de labels (short display labels).
+# Users select a unit when adding an item; the unit id is stored in item metadata.
+
+units:
+  - id: pcs
+    default: true
+    labels:
+      en: pcs
+      de: Stk
+  - id: g
+    labels:
+      en: g
+      de: g
+  - id: kg
+    labels:
+      en: kg
+      de: kg
+  - id: ml
+    labels:
+      en: ml
+      de: ml
+  - id: l
+    labels:
+      en: L
+      de: l
+  - id: pack
+    labels:
+      en: pack
+      de: Packung
+  - id: bottle
+    labels:
+      en: bottle
+      de: Flasche
+  - id: can
+    labels:
+      en: can
+      de: Dose
+  - id: bunch
+    labels:
+      en: bunch
+      de: Bund

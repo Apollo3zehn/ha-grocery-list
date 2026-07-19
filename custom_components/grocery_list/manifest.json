@@ -1,0 +1,13 @@
+{
+  "domain": "grocery_list",
+  "name": "Grocery List",
+  "version": "0.1.0",
+  "documentation": "https://codeberg.org/Apollo3zehn/ha-grocery-list",
+  "issue_tracker": "https://codeberg.org/Apollo3zehn/ha-grocery-list/issues",
+  "codeowners": ["@Apollo3zehn"],
+  "config_flow": true,
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "requirements": ["dulwich==0.22.1", "paramiko==3.4.0"],
+  "dependencies": ["http", "websocket_api"]
+}

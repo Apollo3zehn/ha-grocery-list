@@ -1,0 +1,48 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Grocery List Setup",
+        "description": "Give this Home Assistant instance a name and connect it to your git repository. The repository will be cloned to validate the connection; setup only completes if the clone succeeds.",
+        "data": {
+          "identity": "Instance name",
+          "auth_method": "Authentication method",
+          "repo_url": "Repository URL",
+          "branch": "Branch",
+          "ssh_key": "SSH private key",
+          "ssh_key_path": "SSH private key file path",
+          "https_token": "Access token (optional)"
+        },
+        "data_description": {
+          "identity": "This name is stored with every item you add (the 'added by' field) and scopes your undo/redo history.",
+          "auth_method": "Choose SSH (recommended: a repo-scoped deploy key) or HTTPS (a repo-scoped access token).",
+          "repo_url": "For SSH use git@host:owner/repo.git. For HTTPS use https://host/owner/repo.git.",
+          "ssh_key": "Paste the private key, or leave empty and provide a file path below.",
+          "ssh_key_path": "Path to a mounted private key file (permissions 600). Preferred so the key is not stored in Home Assistant.",
+          "https_token": "Repo-scoped fine-grained token. Leave empty for public repositories."
+        }
+      }
+    },
+    "error": {
+      "clone_failed": "Could not clone the repository. Check the URL and credentials.",
+      "auth_failed": "Authentication failed. Check your SSH key or access token.",
+      "invalid_url": "The repository URL is not valid for the selected authentication method.",
+      "key_read_failed": "Could not read the SSH key file at the given path."
+    },
+    "abort": {
+      "already_configured": "This repository is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Grocery List Options",
+        "data": {
+          "push_debounce_seconds": "Push delay after last change (seconds)",
+          "pull_interval_seconds": "Pull interval (seconds)",
+          "archive_retention_days": "Archive retention (days)"
+        }
+      }
+    }
+  }
+}

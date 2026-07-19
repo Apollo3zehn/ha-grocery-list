@@ -1,0 +1,48 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Einkaufsliste einrichten",
+        "description": "Geben Sie dieser Home-Assistant-Instanz einen Namen und verbinden Sie sie mit Ihrem Git-Repository. Das Repository wird geklont, um die Verbindung zu prüfen; die Einrichtung wird nur abgeschlossen, wenn das Klonen erfolgreich ist.",
+        "data": {
+          "identity": "Instanzname",
+          "auth_method": "Authentifizierungsmethode",
+          "repo_url": "Repository-URL",
+          "branch": "Branch",
+          "ssh_key": "Privater SSH-Schlüssel",
+          "ssh_key_path": "Pfad zur privaten SSH-Schlüsseldatei",
+          "https_token": "Zugriffstoken (optional)"
+        },
+        "data_description": {
+          "identity": "Dieser Name wird bei jedem hinzugefügten Artikel gespeichert (Feld „hinzugefügt von“) und begrenzt Ihren Rückgängig-/Wiederherstellen-Verlauf.",
+          "auth_method": "Wählen Sie SSH (empfohlen: ein repo-spezifischer Deploy-Key) oder HTTPS (ein repo-spezifisches Zugriffstoken).",
+          "repo_url": "Für SSH: git@host:besitzer/repo.git. Für HTTPS: https://host/besitzer/repo.git.",
+          "ssh_key": "Fügen Sie den privaten Schlüssel ein oder lassen Sie das Feld leer und geben Sie unten einen Dateipfad an.",
+          "ssh_key_path": "Pfad zu einer eingebundenen privaten Schlüsseldatei (Berechtigungen 600). Bevorzugt, damit der Schlüssel nicht in Home Assistant gespeichert wird.",
+          "https_token": "Repo-spezifisches, fein granuliertes Token. Für öffentliche Repositories leer lassen."
+        }
+      }
+    },
+    "error": {
+      "clone_failed": "Repository konnte nicht geklont werden. Prüfen Sie URL und Zugangsdaten.",
+      "auth_failed": "Authentifizierung fehlgeschlagen. Prüfen Sie Ihren SSH-Schlüssel oder Ihr Zugriffstoken.",
+      "invalid_url": "Die Repository-URL ist für die gewählte Authentifizierungsmethode ungültig.",
+      "key_read_failed": "Die SSH-Schlüsseldatei konnte unter dem angegebenen Pfad nicht gelesen werden."
+    },
+    "abort": {
+      "already_configured": "Dieses Repository ist bereits konfiguriert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Einkaufslisten-Optionen",
+        "data": {
+          "push_debounce_seconds": "Push-Verzögerung nach letzter Änderung (Sekunden)",
+          "pull_interval_seconds": "Pull-Intervall (Sekunden)",
+          "archive_retention_days": "Archiv-Aufbewahrung (Tage)"
+        }
+      }
+    }
+  }
+}

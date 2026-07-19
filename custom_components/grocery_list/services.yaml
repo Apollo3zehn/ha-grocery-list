@@ -1,0 +1,103 @@
+# Service descriptions for the Grocery List integration (PLAN §9).
+# These expose the same high-level actions as the Lovelace card so they can be
+# used from automations, scripts, and voice assistants.
+
+add_item:
+  name: Add item
+  description: Add an item to a grocery list.
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      example: 1a2b3c4d5e6f
+      selector:
+        text:
+    slug:
+      name: List
+      description: The list slug (the filename stem, e.g. "rewe").
+      required: true
+      example: rewe
+      selector:
+        text:
+    name:
+      name: Item name
+      description: The name of the item to add.
+      required: true
+      example: Tomatoes
+      selector:
+        text:
+    category:
+      name: Category
+      description: Optional category id to file the item under.
+      required: false
+      selector:
+        text:
+    qty_value:
+      name: Quantity value
+      description: Optional numeric quantity.
+      required: false
+      example: 2
+      selector:
+        number:
+          min: 0
+          step: 0.01
+          mode: box
+    qty_unit:
+      name: Quantity unit
+      description: Optional unit id (see units.yaml, e.g. "pcs", "kg").
+      required: false
+      example: pcs
+      selector:
+        text:
+
+clear_checked:
+  name: Clear checked
+  description: Archive and remove all checked items in a list.
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      selector:
+        text:
+    slug:
+      name: List
+      description: The list slug to clear.
+      required: true
+      example: rewe
+      selector:
+        text:
+
+undo:
+  name: Undo
+  description: Undo this instance's most recent action.
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      selector:
+        text:
+
+redo:
+  name: Redo
+  description: Redo this instance's most recently undone action.
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      selector:
+        text:
+
+sync:
+  name: Sync now
+  description: Force an immediate pull, merge, and push with the git remote.
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      selector:
+        text:

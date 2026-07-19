@@ -1,0 +1,8 @@
+# The synced grocery repo is owned by this integration but kept clean and
+# interoperable. We do NOT rely on git's textual merge for our data files;
+# all conflict resolution is performed semantically in Python (see PLAN).
+# Marking data files as text keeps diffs readable on the git host.
+lists/*.md text eol=lf
+archive/*.md text eol=lf
+.grocery/categories.json text eol=lf
+.grocery/oplog.jsonl text eol=lf
