@@ -17,7 +17,7 @@ def _sample_list() -> GroceryList:
             Item(
                 id="a1b2",
                 name="Tomatoes",
-                category="cat-veg",
+                category="Vegetables",
                 qty=Quantity(2, "pcs"),
                 checked=False,
                 added_by="kitchen-pi",
@@ -27,7 +27,7 @@ def _sample_list() -> GroceryList:
             Item(
                 id="c3d4",
                 name="Potatoes",
-                category="cat-veg",
+                category="Vegetables",
                 qty=Quantity(1, "kg"),
                 checked=True,
                 added_by="anna",
@@ -38,7 +38,7 @@ def _sample_list() -> GroceryList:
             Item(
                 id="e5f6",
                 name="Milk",
-                category="cat-dairy",
+                category="Dairy",
                 qty=Quantity(2, "l"),
                 checked=False,
                 added_by="kitchen-pi",
@@ -51,15 +51,11 @@ def _sample_list() -> GroceryList:
 
 def test_serialize_groups_and_sinks_checked():
     glist = _sample_list()
-    md = serialize(
-        glist,
-        category_order=["cat-veg", "cat-dairy"],
-        category_labels={"cat-veg": "Vegetables", "cat-dairy": "Dairy"},
-    )
+    md = serialize(glist)
     lines = md.splitlines()
     assert lines[0] == "# Rewe"
-    # Vegetables section before Dairy
-    assert lines.index("## Vegetables") < lines.index("## Dairy")
+    # Sections are alphabetical by name: Dairy before Vegetables.
+    assert lines.index("## Dairy") < lines.index("## Vegetables")
     # Within Vegetables, unchecked Tomatoes before checked Potatoes
     veg_start = lines.index("## Vegetables")
     tomato_line = next(i for i, l in enumerate(lines) if "Tomatoes" in l)
@@ -72,11 +68,7 @@ def test_serialize_groups_and_sinks_checked():
 
 def test_roundtrip_preserves_items():
     glist = _sample_list()
-    md = serialize(
-        glist,
-        category_order=["cat-veg", "cat-dairy"],
-        category_labels={"cat-veg": "Vegetables", "cat-dairy": "Dairy"},
-    )
+    md = serialize(glist)
     parsed = parse(md)
     # Compare by id-keyed dicts (order differs due to grouping/sinking).
     original = {i.id: i for i in glist.items}
@@ -100,17 +92,24 @@ def test_uncategorized_section_rendered_last():
         title="X",
         items=[
             Item(id="u1", name="Mystery", category=None),
-            Item(id="v1", name="Carrot", category="cat-veg"),
+            Item(id="v1", name="Carrot", category="Vegetables"),
         ],
     )
-    md = serialize(
-        glist,
-        category_order=["cat-veg"],
-        category_labels={"cat-veg": "Vegetables"},
-        uncategorized_label="Uncategorized",
-    )
+    md = serialize(glist, uncategorized_label="Uncategorized")
     lines = md.splitlines()
     assert lines.index("## Vegetables") < lines.index("## Uncategorized")
+
+
+def test_category_name_with_spaces_roundtrips():
+    glist = GroceryList(
+        slug="x",
+        title="X",
+        items=[Item(id="i1", name="Cream", category="Dairy & Eggs")],
+    )
+    md = serialize(glist)
+    assert "## Dairy & Eggs" in md
+    parsed = parse(md)
+    assert parsed.items[0].category == "Dairy & Eggs"
 
 
 def test_parse_fallback_without_metadata():
@@ -136,7 +135,7 @@ def _archived(iid, name, arch_ts, qty=None):
         item=Item(
             id=iid,
             name=name,
-            category="cat-veg",
+            category="Vegetables",
             qty=qty,
             checked=True,
             added_by="kitchen-pi",

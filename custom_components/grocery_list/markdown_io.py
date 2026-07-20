@@ -8,14 +8,16 @@ fields that are persisted).
 
 Layout rules:
 - ``# <title>`` is the top-level heading.
-- Each category is a ``## <label>`` section. Items are ``- [ ]``/``- [x]``.
-- Items are grouped by category using the provided category ordering; within a
-  category, unchecked items come first and checked items sink to the bottom
-  (PLAN §1, §4.2).
-- Items whose ``category`` is ``None`` or unknown are rendered last under an
+- Each category is a ``## <name>`` section. Items are ``- [ ]``/``- [x]``.
+- The set of categories is derived from the items' ``category`` name field;
+  sections are ordered alphabetically by name. Within a category, unchecked
+  items come first and checked items sink to the bottom (PLAN §1, §4.2).
+- Items whose ``category`` is ``None`` are rendered last under an
   "Uncategorized" section, whose label is provided by the caller (localized).
 - Metadata is stored in a trailing HTML comment per item:
   ``<!-- id:.. cat:.. by:.. qty:VALUE:UNIT ts:.. upd:.. checked_ts:.. -->``
+  The ``cat`` value is percent-encoded since a category name may contain
+  spaces (which would otherwise break the whitespace-delimited comment body).
 
 The parser is tolerant: it reconstructs items purely from the metadata comment
 when present (the visible text is for humans and the git host). If an item line
@@ -27,6 +29,7 @@ lost.
 from __future__ import annotations
 
 import re
+from urllib.parse import quote, unquote
 
 from .models import (
     ArchivedItem,
@@ -50,7 +53,9 @@ _H2_RE = re.compile(r"^##\s+(?P<label>.+?)\s*$")
 def _encode_meta(item: Item) -> str:
     """Encode item metadata into a compact, order-stable comment body."""
     parts = [f"id:{item.id}"]
-    parts.append(f"cat:{item.category}" if item.category else "cat:-")
+    parts.append(
+        f"cat:{quote(item.category, safe='')}" if item.category else "cat:-"
+    )
     parts.append(f"by:{item.added_by}" if item.added_by else "by:-")
     if item.qty is not None:
         # value:unit; render integers without trailing .0 for readability
@@ -112,36 +117,23 @@ def _render_item_text(item: Item) -> str:
 def serialize(
     glist: GroceryList,
     *,
-    category_order: list[str] | None = None,
-    category_labels: dict[str, str] | None = None,
     uncategorized_label: str = "Uncategorized",
 ) -> str:
     """Serialize a GroceryList to Markdown text.
 
-    ``category_order`` gives the display order of category ids. ``category_labels``
-    maps category id -> localized label for the ``##`` headings. Items with an
-    unknown/None category are grouped under ``uncategorized_label`` last.
+    The set of category sections is derived from the items' ``category`` name
+    field and ordered alphabetically. Items with a ``None`` category are
+    grouped under ``uncategorized_label`` last. The ``## <name>`` heading is
+    the category name itself.
     """
-    category_order = category_order or []
-    category_labels = category_labels or {}
-
-    # Bucket items by category id (None -> sentinel key "").
+    # Bucket items by category name (None -> sentinel key "").
     buckets: dict[str, list[Item]] = {}
     for item in glist.items:
         key = item.category if item.category else ""
         buckets.setdefault(key, []).append(item)
 
-    # Determine section order: known categories in given order, then any other
-    # category ids present but not in the order list (stable, sorted), then
-    # uncategorized last.
-    ordered_keys: list[str] = []
-    for cid in category_order:
-        if cid in buckets:
-            ordered_keys.append(cid)
-    leftovers = sorted(
-        k for k in buckets if k and k not in category_order
-    )
-    ordered_keys.extend(leftovers)
+    # Section order: category names alphabetically, then uncategorized last.
+    ordered_keys: list[str] = sorted(k for k in buckets if k)
     if "" in buckets:
         ordered_keys.append("")
 
@@ -154,9 +146,7 @@ def serialize(
             items,
             key=lambda it: (it.checked, it.created_ts, it.name.lower()),
         )
-        label = (
-            category_labels.get(key, key) if key else uncategorized_label
-        )
+        label = key if key else uncategorized_label
         lines.append(f"## {label}")
         for item in items_sorted:
             box = "x" if item.checked else " "
@@ -236,6 +226,8 @@ def parse(text: str) -> GroceryList:
             category = meta.get("cat")
             if category in (None, "-", ""):
                 category = None
+            else:
+                category = unquote(category)
             added_by = meta.get("by")
             if added_by in (None, "-"):
                 added_by = ""
@@ -334,6 +326,8 @@ def parse_archive(text: str) -> tuple[str, list[ArchivedItem]]:
         category = meta.get("cat")
         if category in (None, "-", ""):
             category = None
+        else:
+            category = unquote(category)
         added_by = meta.get("by")
         if added_by in (None, "-"):
             added_by = ""

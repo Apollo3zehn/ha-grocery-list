@@ -101,28 +101,6 @@ export class GroceryApi {
     return this.send("delete_list", { slug });
   }
 
-  createCategory(
-    name: string,
-    icon?: string | null
-  ): Promise<{ category: unknown }> {
-    return this.send("create_category", { name, icon });
-  }
-
-  updateCategory(
-    catId: string,
-    changes: { name?: string; icon?: string | null; order?: number }
-  ): Promise<{ category: unknown }> {
-    return this.send("update_category", { cat_id: catId, ...changes });
-  }
-
-  deleteCategory(catId: string): Promise<{ deleted: string }> {
-    return this.send("delete_category", { cat_id: catId });
-  }
-
-  reorderCategories(orderedIds: string[]): Promise<{ ok: boolean }> {
-    return this.send("reorder_categories", { ordered_ids: orderedIds });
-  }
-
   undo(): Promise<{ undone: boolean }> {
     return this.send("undo");
   }

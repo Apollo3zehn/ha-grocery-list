@@ -1,6 +1,5 @@
 """Tests for pure repo (de)serialization + whole-repo merge (PLAN §2, §3)."""
 
-from grocery_list.categories import CategorySet
 from grocery_list.models import ArchivedItem, Item, ListState, Tombstone
 from grocery_list.repo_state import RepoState, merge_repo_states
 
@@ -19,22 +18,21 @@ def _item(iid, name, cat=None, checked=False, ts="2026-01-01T00:00:00Z"):
 
 
 def test_roundtrip_files_lists_categories():
-    cats = CategorySet()
-    veg = cats.create("Vegetables")
     state = ListState(slug="rewe", title="Rewe")
     state.items = {
-        "i1": _item("i1", "Tomatoes", cat=veg.id),
+        "i1": _item("i1", "Tomatoes", cat="Vegetables"),
         "i2": _item("i2", "Milk"),
     }
     state.tombstones = {
         "gone": Tombstone(id="gone", deleted_ts="2026-01-02T00:00:00Z")
     }
-    rs = RepoState(lists={"rewe": state}, categories=cats)
+    rs = RepoState(lists={"rewe": state})
 
     files = rs.to_files()
     assert "lists/rewe.md" in files
     assert ".grocery/tombstones/rewe.json" in files
-    assert ".grocery/categories.json" in files
+    # Categories are derived from item names, never stored separately.
+    assert ".grocery/categories.json" not in files
     # The undo/redo op-log is in-memory only; it is never serialized.
     assert ".grocery/oplog.jsonl" not in files
 
@@ -43,15 +41,13 @@ def test_roundtrip_files_lists_categories():
     r = restored.lists["rewe"]
     assert r.title == "Rewe"
     assert set(r.items) == {"i1", "i2"}
-    assert r.items["i1"].category == veg.id
+    assert r.items["i1"].category == "Vegetables"
     assert "gone" in r.tombstones
-    assert restored.categories.order_ids() == cats.order_ids()
 
 
 def test_from_files_empty():
     rs = RepoState.from_files({})
     assert rs.lists == {}
-    assert rs.categories.ordered() == []
 
 
 def test_from_files_tombstone_without_md_creates_state():

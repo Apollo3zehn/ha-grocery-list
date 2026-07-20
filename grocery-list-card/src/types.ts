@@ -19,14 +19,6 @@ export interface Item {
   checked_ts: string | null;
 }
 
-export interface Category {
-  id: string;
-  order: number;
-  name: string;
-  icon: string | null;
-  updated_ts: string;
-}
-
 export interface ListSnapshot {
   slug: string;
   title: string;
@@ -48,8 +40,8 @@ export interface Snapshot {
   can_undo: boolean;
   can_redo: boolean;
   lists: ListSnapshot[];
-  categories: Category[];
-  category_labels: Record<string, string>;
+  // Category names in use, derived from items and sorted alphabetically.
+  categories: string[];
   // Per-slug archive of cleared items, newest-first.
   archives: Record<string, ArchivedItem[]>;
 }

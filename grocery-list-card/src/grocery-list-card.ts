@@ -5,7 +5,6 @@ import { cardStyles } from "./styles";
 import { makeT, resolveLang } from "./i18n";
 import type {
   ArchivedItem,
-  Category,
   GetUnitsResult,
   GroceryCardConfig,
   HomeAssistant,
@@ -17,6 +16,8 @@ import type {
 
 // Sentinel key used to group items that have no category.
 const NO_CAT = "__none__";
+// Sentinel value for the "create a new category" option in the dropdowns.
+const NEW_CAT = "__new__";
 
 @customElement("grocery-list-card")
 export class GroceryListCard extends LitElement {
@@ -41,10 +42,9 @@ export class GroceryListCard extends LitElement {
   @state() private _draftUnit = "";
   @state() private _draftCategory: string | null = null;
 
-  // Settings sheet state (combined lists + categories manager).
+  // Settings sheet state (lists manager).
   @state() private _settingsOpen = false;
   @state() private _archiveOpen = false;
-  @state() private _newCatName = "";
 
   // New-list draft (within the settings sheet).
   @state() private _newListName = "";
@@ -316,14 +316,22 @@ export class GroceryListCard extends LitElement {
           class="gl-cat"
           .value=${this._draftCategory ?? NO_CAT}
           @change=${(e: Event) => {
-            const v = (e.target as HTMLSelectElement).value;
-            this._draftCategory = v === NO_CAT ? null : v;
+            const sel = e.target as HTMLSelectElement;
+            const v = sel.value;
+            if (v === NEW_CAT) {
+              const name = this._promptNewCategory(t);
+              this._draftCategory = name;
+              sel.value = name ?? NO_CAT;
+            } else {
+              this._draftCategory = v === NO_CAT ? null : v;
+            }
           }}
         >
           <option value=${NO_CAT}>${t("uncategorized")}</option>
           ${this._categories().map(
-            (c) => html`<option value=${c.id}>${this._catLabel(c)}</option>`
+            (c) => html`<option value=${c}>${c}</option>`
           )}
+          <option value=${NEW_CAT}>${t("new_category")}…</option>
         </select>
       </div>
     `;
@@ -354,17 +362,14 @@ export class GroceryListCard extends LitElement {
     `;
   }
 
-  // Render a set of items grouped by category, ordered by the user's category
-  // order (uncategorized last). Used for both the active and checked sections.
+  // Render a set of items grouped by category name, ordered alphabetically
+  // (uncategorized last). Used for both the active and checked sections.
   private _renderCategoryGroups(
     items: Item[],
     slug: string,
     t: (k: string) => string
   ): TemplateResult {
     if (!items.length) return html``;
-    const cats = this._categories();
-    const order = new Map<string, number>();
-    cats.forEach((c, i) => order.set(c.id, i));
     const groups = new Map<string, Item[]>();
     for (const it of items) {
       const key = it.category ?? NO_CAT;
@@ -375,17 +380,14 @@ export class GroceryListCard extends LitElement {
     const keys = [...groups.keys()].sort((a, b) => {
       if (a === NO_CAT) return 1;
       if (b === NO_CAT) return -1;
-      return (order.get(a) ?? 999) - (order.get(b) ?? 999);
+      return a.localeCompare(b);
     });
     return html`
       ${keys.map((key) => {
         const groupItems = [...groups.get(key)!].sort((a, b) =>
           a.created_ts.localeCompare(b.created_ts)
         );
-        const label =
-          key === NO_CAT
-            ? t("uncategorized")
-            : this._snapshot!.category_labels[key] ?? key;
+        const label = key === NO_CAT ? t("uncategorized") : key;
         return html`
           <div class="gl-group">
             <div class="gl-group-title">${label}</div>
@@ -489,14 +491,22 @@ export class GroceryListCard extends LitElement {
             class="gl-cat"
             .value=${this._editCategory ?? NO_CAT}
             @change=${(e: Event) => {
-              const v = (e.target as HTMLSelectElement).value;
-              this._editCategory = v === NO_CAT ? null : v;
+              const sel = e.target as HTMLSelectElement;
+              const v = sel.value;
+              if (v === NEW_CAT) {
+                const name = this._promptNewCategory(t);
+                this._editCategory = name;
+                sel.value = name ?? NO_CAT;
+              } else {
+                this._editCategory = v === NO_CAT ? null : v;
+              }
             }}
           >
             <option value=${NO_CAT}>${t("uncategorized")}</option>
             ${this._categories().map(
-              (c) => html`<option value=${c.id}>${this._catLabel(c)}</option>`
+              (c) => html`<option value=${c}>${c}</option>`
             )}
+            <option value=${NEW_CAT}>${t("new_category")}…</option>
           </select>
         </div>
       </div>
@@ -598,7 +608,6 @@ export class GroceryListCard extends LitElement {
 
   private _renderSettings(t: (k: string) => string): TemplateResult {
     const lists = this._snapshot?.lists ?? [];
-    const cats = this._categories();
     return html`
       <div
         class="gl-overlay"
@@ -638,29 +647,6 @@ export class GroceryListCard extends LitElement {
               </button>
             </div>
           </div>
-
-          <div class="gl-settings-section">
-            <div class="gl-section-title">${t("categories")}</div>
-            ${cats.length
-              ? html`<ul class="gl-catlist">
-                  ${cats.map((c, i) => this._renderCatRow(c, i, cats.length, t))}
-                </ul>`
-              : html`<div class="gl-empty">${t("no_categories")}</div>`}
-            <div class="gl-cat-new">
-              <input
-                .value=${this._newCatName}
-                placeholder=${t("category_name")}
-                @input=${(e: Event) =>
-                  (this._newCatName = (e.target as HTMLInputElement).value)}
-                @keydown=${(e: KeyboardEvent) => {
-                  if (e.key === "Enter") this._commitNewCategory();
-                }}
-              />
-              <button class="gl-add-btn" @click=${() => this._commitNewCategory()}>
-                ${t("add_category")}
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     `;
@@ -689,49 +675,19 @@ export class GroceryListCard extends LitElement {
     `;
   }
 
-  private _renderCatRow(
-    c: Category,
-    index: number,
-    total: number,
-    t: (k: string) => string
-  ): TemplateResult {
-    return html`
-      <li class="gl-catrow">
-        <input
-          class="gl-cat-label"
-          .value=${c.name ?? ""}
-          @change=${(e: Event) =>
-            this._renameCategory(c, (e.target as HTMLInputElement).value)}
-        />
-        <button
-          class="gl-icon-btn"
-          title=${t("move_up")}
-          ?disabled=${index === 0}
-          @click=${() => this._moveCategory(index, -1)}
-        >\u2191</button>
-        <button
-          class="gl-icon-btn"
-          title=${t("move_down")}
-          ?disabled=${index === total - 1}
-          @click=${() => this._moveCategory(index, 1)}
-        >\u2193</button>
-        <button
-          class="gl-icon-btn"
-          title=${t("delete")}
-          @click=${() => this._deleteCategory(c, t)}
-        >\u2715</button>
-      </li>
-    `;
-  }
-
   // ----- Helpers ---------------------------------------------------------
 
-  private _categories(): Category[] {
+  private _categories(): string[] {
     return this._snapshot?.categories ?? [];
   }
 
-  private _catLabel(c: Category): string {
-    return c.name || c.id;
+  // Prompt for a new category name (inline creation from the dropdowns).
+  // Returns the trimmed name, or null if cancelled/empty.
+  private _promptNewCategory(t: (k: string) => string): string | null {
+    const raw = window.prompt(t("category_name"));
+    if (raw === null) return null;
+    const name = raw.trim();
+    return name || null;
   }
 
   private _unitLabel(id: string): string {
@@ -812,40 +768,11 @@ export class GroceryListCard extends LitElement {
     this._draftName = "";
   }
 
-  // ----- Category manager handlers --------------------------------------
-
-  private _commitNewCategory(): void {
-    const name = this._newCatName.trim();
-    if (!name) return;
-    void this._api?.createCategory(name);
-    this._newCatName = "";
-  }
-
-  private _renameCategory(c: Category, value: string): void {
-    const next = value.trim();
-    if (!next || next === (c.name ?? "")) return;
-    void this._api?.updateCategory(c.id, { name: next });
-  }
-
-  private _moveCategory(index: number, delta: number): void {
-    const ids = this._categories().map((c) => c.id);
-    const target = index + delta;
-    if (target < 0 || target >= ids.length) return;
-    [ids[index], ids[target]] = [ids[target], ids[index]];
-    void this._api?.reorderCategories(ids);
-  }
-
-  private _deleteCategory(c: Category, t: (k: string) => string): void {
-    if (!window.confirm(t("delete_category_confirm"))) return;
-    void this._api?.deleteCategory(c.id);
-  }
-
   // ----- Settings / list handlers ---------------------------------------
 
   private _closeSettings(): void {
     this._settingsOpen = false;
     this._newListName = "";
-    this._newCatName = "";
   }
 
   private async _commitNewList(): Promise<void> {

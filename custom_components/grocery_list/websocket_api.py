@@ -4,7 +4,7 @@ The card is a custom TS+Lit element that talks to HA over the WebSocket API.
 This module registers a family of ``grocery_list/*`` commands that:
 
 - **subscribe** to a config entry's state (initial snapshot + push on change),
-- **mutate** state (add/update/check/delete item, clear-checked, category CRUD,
+- **mutate** state (add/update/check/delete item, clear-checked,
   reorder), and
 - drive **undo/redo** and an explicit **sync** trigger.
 
@@ -49,10 +49,6 @@ WS_RESTORE_ARCHIVED = f"{DOMAIN}/restore_archived"
 WS_CREATE_LIST = f"{DOMAIN}/create_list"
 WS_RENAME_LIST = f"{DOMAIN}/rename_list"
 WS_DELETE_LIST = f"{DOMAIN}/delete_list"
-WS_CREATE_CATEGORY = f"{DOMAIN}/create_category"
-WS_UPDATE_CATEGORY = f"{DOMAIN}/update_category"
-WS_DELETE_CATEGORY = f"{DOMAIN}/delete_category"
-WS_REORDER_CATEGORIES = f"{DOMAIN}/reorder_categories"
 WS_UNDO = f"{DOMAIN}/undo"
 WS_REDO = f"{DOMAIN}/redo"
 WS_SYNC = f"{DOMAIN}/sync"
@@ -98,10 +94,6 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_create_list)
     websocket_api.async_register_command(hass, ws_rename_list)
     websocket_api.async_register_command(hass, ws_delete_list)
-    websocket_api.async_register_command(hass, ws_create_category)
-    websocket_api.async_register_command(hass, ws_update_category)
-    websocket_api.async_register_command(hass, ws_delete_category)
-    websocket_api.async_register_command(hass, ws_reorder_categories)
     websocket_api.async_register_command(hass, ws_undo)
     websocket_api.async_register_command(hass, ws_redo)
     websocket_api.async_register_command(hass, ws_sync)
@@ -403,112 +395,6 @@ def ws_delete_list(
         )
         return
     connection.send_result(msg["id"], {"deleted": msg["slug"]})
-
-
-# ---------------------------------------------------------------------------
-# Category mutations
-# ---------------------------------------------------------------------------
-
-
-@websocket_api.websocket_command(
-    {
-        vol.Required("type"): WS_CREATE_CATEGORY,
-        vol.Required("entry_id"): str,
-        vol.Required("name"): str,
-        vol.Optional("icon"): vol.Any(str, None),
-    }
-)
-@callback
-def ws_create_category(
-    hass: HomeAssistant,
-    connection: websocket_api.ActiveConnection,
-    msg: dict[str, Any],
-) -> None:
-    coordinator = _require_coordinator(hass, connection, msg)
-    if coordinator is None:
-        return
-    cat = coordinator.async_create_category(
-        msg["name"], icon=msg.get("icon")
-    )
-    connection.send_result(msg["id"], {"category": cat.to_dict()})
-
-
-@websocket_api.websocket_command(
-    {
-        vol.Required("type"): WS_UPDATE_CATEGORY,
-        vol.Required("entry_id"): str,
-        vol.Required("cat_id"): str,
-        vol.Optional("name"): str,
-        vol.Optional("icon"): vol.Any(str, None),
-        vol.Optional("order"): int,
-    }
-)
-@callback
-def ws_update_category(
-    hass: HomeAssistant,
-    connection: websocket_api.ActiveConnection,
-    msg: dict[str, Any],
-) -> None:
-    coordinator = _require_coordinator(hass, connection, msg)
-    if coordinator is None:
-        return
-    cat = coordinator.async_update_category(
-        msg["cat_id"],
-        name=msg["name"] if "name" in msg else None,
-        icon=msg.get("icon") if "icon" in msg else None,
-        order=msg.get("order") if "order" in msg else None,
-    )
-    if cat is None:
-        connection.send_error(
-            msg["id"], websocket_api.const.ERR_NOT_FOUND, "Category not found"
-        )
-        return
-    connection.send_result(msg["id"], {"category": cat.to_dict()})
-
-
-@websocket_api.websocket_command(
-    {
-        vol.Required("type"): WS_DELETE_CATEGORY,
-        vol.Required("entry_id"): str,
-        vol.Required("cat_id"): str,
-    }
-)
-@callback
-def ws_delete_category(
-    hass: HomeAssistant,
-    connection: websocket_api.ActiveConnection,
-    msg: dict[str, Any],
-) -> None:
-    coordinator = _require_coordinator(hass, connection, msg)
-    if coordinator is None:
-        return
-    ok = coordinator.async_delete_category(msg["cat_id"])
-    if not ok:
-        connection.send_error(
-            msg["id"], websocket_api.const.ERR_NOT_FOUND, "Category not found"
-        )
-        return
-    connection.send_result(msg["id"], {"deleted": msg["cat_id"]})
-
-
-@websocket_api.websocket_command(
-    {
-        vol.Required("type"): WS_REORDER_CATEGORIES,
-        vol.Required("entry_id"): str,
-        vol.Required("ordered_ids"): [str],
-    }
-)
-@callback
-def ws_reorder_categories(
-    hass: HomeAssistant,
-    connection: websocket_api.ActiveConnection,
-    msg: dict[str, Any],
-) -> None:
-    coordinator = _require_coordinator(hass, connection, msg)
-    if coordinator is None:
-        return
-    coordinator.async_reorder_categories(list(msg["ordered_ids"]))
-    connection.send_result(msg["id"], {"ok": True})
 
 
 # ---------------------------------------------------------------------------

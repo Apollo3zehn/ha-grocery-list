@@ -29,7 +29,7 @@ add_item:
         text:
     category:
       name: Category
-      description: Optional category id to file the item under.
+      description: Optional category name to file the item under.
       required: false
       selector:
         text:

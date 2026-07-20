@@ -1,7 +1,6 @@
 """Unit tests for the data models."""
 
 from grocery_list.models import (
-    Category,
     GroceryList,
     Item,
     Quantity,
@@ -36,7 +35,7 @@ def test_item_roundtrip():
     item = Item(
         id="a1b2",
         name="Tomatoes",
-        category="cat-veg",
+        category="Vegetables",
         qty=Quantity(2, "pcs"),
         checked=False,
         added_by="kitchen-pi",
@@ -51,24 +50,6 @@ def test_item_copy():
     assert checked.checked is True
     assert item.checked is False
     assert checked.id == item.id
-
-
-def test_category_display_fallback():
-    cat = Category(id="cat-veg", name="Vegetables")
-    assert cat.display() == "Vegetables"
-    # name missing -> falls back to id
-    empty = Category(id="cat-x")
-    assert empty.display() == "cat-x"
-
-
-def test_category_roundtrip():
-    cat = Category(
-        id="cat-veg",
-        order=1,
-        name="Vegetables",
-        icon="mdi:carrot",
-    )
-    assert Category.from_dict(cat.to_dict()) == cat
 
 
 def test_grocerylist_item_by_id_and_roundtrip():

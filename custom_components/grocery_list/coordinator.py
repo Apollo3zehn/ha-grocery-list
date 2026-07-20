@@ -37,7 +37,6 @@ from homeassistant.helpers.event import async_call_later, async_track_time_inter
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .categories import CategorySet
 from .const import (
     CONF_AUTH_METHOD,
     CONF_ARCHIVE_RETENTION,
@@ -79,7 +78,6 @@ from .models import (
     utcnow_iso,
 )
 from .oplog import (
-    ENTITY_CATEGORY,
     ENTITY_ITEM,
     ENTITY_LIST,
     Op,
@@ -472,7 +470,6 @@ class GroceryCoordinator:
         paths += [
             f".grocery/tombstones/{slug}.json" for slug in self.state.lists
         ]
-        paths.append(".grocery/categories.json")
         paths.append(LIST_TOMBSTONES_FILE)
         return paths
 
@@ -872,121 +869,13 @@ class GroceryCoordinator:
             self._schedule_push()
         return purged
 
-    # -- category mutations -------------------------------------------------
-
-    @callback
-    def async_create_category(
-        self,
-        name: str,
-        *,
-        icon: str | None = None,
-    ):
-        """Create a user-managed category and record an undoable op."""
-        cat = self.state.categories.create(name, icon=icon)
-        self._record_and_schedule(
-            make_action_op(
-                identity=self.identity,
-                entity=ENTITY_CATEGORY,
-                scope="",
-                target_id=cat.id,
-                before=None,
-                after=cat.to_dict(),
-                label="create_category",
-            )
-        )
-        return cat
-
-    @callback
-    def async_update_category(
-        self,
-        cat_id: str,
-        *,
-        name: str | None = None,
-        icon: str | None = None,
-        order: int | None = None,
-    ):
-        """Update a category (name/icon/order) and record an undoable op."""
-        existing = self.state.categories.categories.get(cat_id)
-        before = existing.to_dict() if existing else None
-        cat = self.state.categories.update(
-            cat_id, name=name, icon=icon, order=order
-        )
-        if cat is None:
-            return None
-        self._record_and_schedule(
-            make_action_op(
-                identity=self.identity,
-                entity=ENTITY_CATEGORY,
-                scope="",
-                target_id=cat_id,
-                before=before,
-                after=cat.to_dict(),
-                label="update_category",
-            )
-        )
-        return cat
-
-    @callback
-    def async_delete_category(self, cat_id: str) -> bool:
-        """Delete a category; items referencing it become uncategorized.
-
-        Reassigning affected items to ``None`` is itself a normal item edit so
-        it merges cleanly across devices (PLAN §4.4).
-        """
-        existing = self.state.categories.categories.get(cat_id)
-        if existing is None:
-            return False
-        before = existing.to_dict()
-        self.state.categories.delete(cat_id)
-
-        # Reassign affected items to uncategorized across all lists.
-        for slug, lstate in self.state.lists.items():
-            for item in lstate.items.values():
-                if item.category == cat_id:
-                    item.category = None
-                    item.updated_ts = utcnow_iso()
-
-        self._record_and_schedule(
-            make_action_op(
-                identity=self.identity,
-                entity=ENTITY_CATEGORY,
-                scope="",
-                target_id=cat_id,
-                before=before,
-                after=None,
-                label="delete_category",
-            )
-        )
-        return True
-
-    @callback
-    def async_reorder_categories(self, ordered_ids: list[str]) -> None:
-        """Set category order and record an op (whole-order snapshot)."""
-        before = {
-            "order": self.state.categories.order_ids(),
-        }
-        self.state.categories.reorder(ordered_ids)
-        after = {"order": self.state.categories.order_ids()}
-        self._record_and_schedule(
-            make_action_op(
-                identity=self.identity,
-                entity=ENTITY_CATEGORY,
-                scope="",
-                target_id="__order__",
-                before=before,
-                after=after,
-                label="reorder_categories",
-            )
-        )
-
     # -- undo / redo (per identity, PLAN §6) -------------------------------
 
     def _apply_snapshot(self, op: Op, snapshot: dict | None) -> None:
         """Apply a before/after entity snapshot to the model.
 
         ``snapshot`` is the desired resulting entity state (or ``None`` to
-        delete). Handles both items (scoped to a list) and categories. Order
-        pseudo-ops (target ``__order__``) restore the recorded order list.
+        delete). Handles items (scoped to a list) and whole lists.
         """
         if op.entity == ENTITY_ITEM:
             state = self.state.lists.get(op.scope)
@@ -1028,21 +917,6 @@ class GroceryCoordinator:
                 self.state.lists[slug] = ListState.from_dict(snapshot)
                 self.state.list_tombstones.pop(slug, None)
             return
-
-        # Category entity.
-        if op.target_id == "__order__":
-            if snapshot and "order" in snapshot:
-                self.state.categories.reorder(snapshot["order"])
-            return
-        if snapshot is None:
-            self.state.categories.delete(op.target_id)
-        else:
-            from .models import Category
-
-            self.state.categories.categories[op.target_id] = (
-                Category.from_dict(snapshot)
-            )
-            self.state.categories.tombstones.pop(op.target_id, None)
 
     @callback
     def async_undo(self) -> bool:
@@ -1102,10 +976,15 @@ class GroceryCoordinator:
                 for slug, state in sorted(self.state.lists.items())
                 if slug not in self.state.list_tombstones
             ],
-            "categories": [
-                c.to_dict() for c in self.state.categories.ordered()
-            ],
-            "category_labels": self.state.categories.names_map(),
+            "categories": sorted(
+                {
+                    it.category
+                    for slug, state in self.state.lists.items()
+                    if slug not in self.state.list_tombstones
+                    for it in state.items.values()
+                    if it.category
+                }
+            ),
             "archives": {
                 slug: [a.to_dict() for a in entries]
                 for slug, entries in sorted(self.state.archives.items())

@@ -126,50 +126,6 @@ class Item:
 
 
 # ---------------------------------------------------------------------------
-# Category
-# ---------------------------------------------------------------------------
-
-
-@dataclass(slots=True)
-class Category:
-    """A user-managed category (PLAN §4.4).
-
-    There are no developer-shipped categories; the set starts empty and is
-    managed entirely through the app UI, synced via the repo. Categories are
-    language-independent: ``name`` is a single free-text display name.
-    """
-
-    id: str
-    order: int = 0
-    name: str = ""
-    icon: str | None = None
-    updated_ts: str = field(default_factory=utcnow_iso)
-
-    def display(self) -> str:
-        """Return the display name, falling back to the id when empty."""
-        return self.name or self.id
-
-    def to_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "order": self.order,
-            "name": self.name,
-            "icon": self.icon,
-            "updated_ts": self.updated_ts,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "Category":
-        return cls(
-            id=str(data["id"]),
-            order=int(data.get("order", 0)),
-            name=str(data.get("name") or ""),
-            icon=data.get("icon"),
-            updated_ts=str(data.get("updated_ts") or utcnow_iso()),
-        )
-
-
-# ---------------------------------------------------------------------------
 # GroceryList
 # ---------------------------------------------------------------------------
 

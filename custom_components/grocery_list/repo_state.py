@@ -8,8 +8,12 @@ repo (which files exist and how they encode state) and how to:
   working tree, or a set of blobs read at a commit),
 - serialize a :class:`RepoState` back to a ``path -> bytes`` mapping for the
   git backend to write,
-- perform the whole-repo semantic 3-way merge (lists + categories) by
+- perform the whole-repo semantic 3-way merge (lists) by
   delegating to the existing pure merge functions.
+
+Categories are not stored: the set of categories is derived implicitly from
+the live items' ``category`` name field, so there is nothing category-related
+to load, serialize, or merge here.
 
 The undo/redo op-log is intentionally NOT part of ``RepoState``: it is an
 in-memory-only, per-runtime concern owned by the coordinator and is never
@@ -23,7 +27,6 @@ this layer pure is what makes the sync logic testable and VCS-agnostic
 Repo layout (see PLAN §9 and ``const.py``):
 - ``lists/<slug>.md``              human-readable list (live items only)
 - ``.grocery/tombstones/<slug>.json`` per-list tombstones (kept out of the md)
-- ``.grocery/categories.json``     user-managed categories + tombstones
 """
 
 from __future__ import annotations
@@ -33,10 +36,8 @@ import re
 from dataclasses import dataclass, field
 
 from . import markdown_io
-from .categories import CategorySet, merge_category_sets
 from .const import (
     ARCHIVE_DIR,
-    CATEGORIES_FILE,
     LIST_TOMBSTONES_FILE,
     LISTS_DIR,
     TOMBSTONES_DIR,
@@ -65,12 +66,11 @@ def _archive_path(slug: str) -> str:
 class RepoState:
     """The complete mergeable state of the synced repository.
 
-    ``lists`` maps slug -> :class:`ListState` (items + tombstones). ``categories``
-    is the user-managed :class:`CategorySet`.
+    ``lists`` maps slug -> :class:`ListState` (items + tombstones). The set of
+    categories is not stored; it is derived from the items' ``category`` names.
     """
 
     lists: dict[str, ListState] = field(default_factory=dict)
-    categories: CategorySet = field(default_factory=CategorySet)
     # Per-slug append-only archive of cleared items (PLAN §4.6). Kept separate
     # from ListState so the semantic list merge stays untouched; archives merge
     # by simple union on their stable key.
@@ -135,8 +135,6 @@ class RepoState:
                 lists[slug] = state
             state.tombstones = {t.id: t for t in tombs}
 
-        categories = CategorySet.from_json(_text(CATEGORIES_FILE) or "")
-
         # Central list-level tombstones (deleted whole lists).
         list_tombstones: dict[str, Tombstone] = {}
         raw_lt = _text(LIST_TOMBSTONES_FILE)
@@ -147,7 +145,6 @@ class RepoState:
 
         return cls(
             lists=lists,
-            categories=categories,
             archives=archives,
             list_tombstones=list_tombstones,
         )
@@ -157,14 +154,11 @@ class RepoState:
     def to_files(self) -> dict[str, bytes]:
         """Serialize to a ``path -> bytes`` mapping for the git backend.
 
-        List markdown is rendered using the current category order/names so the
-        file on the host is grouped and readable. Tombstones are written to
-        their JSON sidecars. Categories are written whole.
+        List markdown is rendered grouped by the items' category names so the
+        file on the host is readable. Tombstones are written to their JSON
+        sidecars.
         """
         out: dict[str, bytes] = {}
-
-        order = self.categories.order_ids()
-        labels = self.categories.names_map()
 
         for slug, state in self.lists.items():
             # A tombstoned (deleted) list is not written back to disk.
@@ -172,11 +166,7 @@ class RepoState:
                 continue
             glist = state.to_list()
             glist.slug = slug
-            md = markdown_io.serialize(
-                glist,
-                category_order=order,
-                category_labels=labels,
-            )
+            md = markdown_io.serialize(glist)
             out[_list_path(slug)] = md.encode("utf-8")
 
             tombs = list(state.tombstones.values())
@@ -196,7 +186,6 @@ class RepoState:
             md = markdown_io.serialize_archive(title, entries)
             out[_archive_path(slug)] = md.encode("utf-8")
 
-        out[CATEGORIES_FILE] = self.categories.to_json().encode("utf-8")
         out[LIST_TOMBSTONES_FILE] = (
             json.dumps(
                 [t.to_dict() for t in self.list_tombstones.values()],
@@ -215,7 +204,6 @@ def merge_repo_states(
 
     - Lists: union of slugs; per slug, :func:`merge.merge` on the three
       ``ListState`` snapshots (empty ListState for missing sides).
-    - Categories: :func:`categories.merge_category_sets`.
     """
     all_slugs = set(base.lists) | set(ours.lists) | set(theirs.lists)
     merged_lists: dict[str, ListState] = {}
@@ -225,15 +213,11 @@ def merge_repo_states(
         t = theirs.lists.get(slug) or ListState(slug=slug, title=b.title)
         merged_lists[slug] = merge_list(b, o, t)
 
-    merged_categories = merge_category_sets(
-        base.categories, ours.categories, theirs.categories
-    )
     merged_archives = _merge_archives(base, ours, theirs)
     merged_list_tombs = _merge_list_tombstones(base, ours, theirs, merged_lists)
 
     return RepoState(
         lists=merged_lists,
-        categories=merged_categories,
         archives=merged_archives,
         list_tombstones=merged_list_tombs,
     )

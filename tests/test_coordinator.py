@@ -165,22 +165,6 @@ async def test_restore_archived_missing_returns_none(
     assert coordinator.async_restore_archived("rewe", "does-not-exist") is None
 
 
-async def test_category_crud(coordinator: GroceryCoordinator):
-    cat = coordinator.async_create_category("Vegetables")
-    assert cat.id in coordinator.state.categories.categories
-    updated = coordinator.async_update_category(cat.id, icon="mdi:carrot")
-    assert updated.icon == "mdi:carrot"
-    assert coordinator.async_delete_category(cat.id) is True
-    assert cat.id not in coordinator.state.categories.categories
-
-
-async def test_delete_category_uncategorizes_items(coordinator: GroceryCoordinator):
-    cat = coordinator.async_create_category("Veg")
-    item = coordinator.async_add_item("rewe", "Tomatoes", category=cat.id)
-    coordinator.async_delete_category(cat.id)
-    assert coordinator.state.lists["rewe"].items[item.id].category is None
-
-
 async def test_undo_add_removes_item(coordinator: GroceryCoordinator):
     item = coordinator.async_add_item("rewe", "Tomatoes")
     assert coordinator.can_undo is True
