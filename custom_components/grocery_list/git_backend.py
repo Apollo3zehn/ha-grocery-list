@@ -147,16 +147,31 @@ class GitBackend:
     def _load_pkey_from_string(data: str):
         import paramiko
 
+        # PEM/OpenSSH private keys are newline-sensitive and paramiko requires a
+        # trailing newline; normalize CRLF and guarantee one.
+        normalized = data.replace("\r\n", "\n")
+        if not normalized.endswith("\n"):
+            normalized += "\n"
+
+        last_err: Exception | None = None
         for loader in (
             paramiko.Ed25519Key,
             paramiko.ECDSAKey,
             paramiko.RSAKey,
         ):
             try:
-                return loader.from_private_key(io.StringIO(data))
-            except Exception:  # noqa: BLE001 - try next key type
+                return loader.from_private_key(io.StringIO(normalized))
+            except paramiko.PasswordRequiredException as err:
+                raise GitAuthError(
+                    "SSH private key is passphrase-protected; provide an "
+                    "unencrypted key."
+                ) from err
+            except Exception as err:  # noqa: BLE001 - try next key type
+                last_err = err
                 continue
-        raise GitAuthError("Unsupported or invalid SSH private key data")
+        raise GitAuthError(
+            f"Unsupported or invalid SSH private key data: {last_err}"
+        )
 
     @staticmethod
     def _load_pkey_from_path(path: str):
@@ -164,6 +179,7 @@ class GitBackend:
 
         if not os.path.isfile(path):
             raise GitAuthError(f"SSH key file not found: {path}")
+        last_err: Exception | None = None
         for loader in (
             paramiko.Ed25519Key,
             paramiko.ECDSAKey,
@@ -171,9 +187,17 @@ class GitBackend:
         ):
             try:
                 return loader.from_private_key_file(path)
-            except Exception:  # noqa: BLE001 - try next key type
+            except paramiko.PasswordRequiredException as err:
+                raise GitAuthError(
+                    "SSH private key is passphrase-protected; provide an "
+                    "unencrypted key."
+                ) from err
+            except Exception as err:  # noqa: BLE001 - try next key type
+                last_err = err
                 continue
-        raise GitAuthError(f"Unsupported or invalid SSH private key file: {path}")
+        raise GitAuthError(
+            f"Unsupported or invalid SSH private key file {path}: {last_err}"
+        )
 
     # -- lifecycle ----------------------------------------------------------
 

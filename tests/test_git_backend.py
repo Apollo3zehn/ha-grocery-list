@@ -122,3 +122,51 @@ def test_validate_url_for_method():
     assert not validate_url_for_method("https://host/o/r.git", "ssh")
     assert validate_url_for_method("https://host/o/r.git", "https")
     assert not validate_url_for_method("git@host:o/r.git", "https")
+
+
+def _generate_ed25519_pem() -> str:
+    """Return a fresh unencrypted RSA private key as a PEM string.
+
+    (RSA is used because ``paramiko.RSAKey.generate`` is available across
+    paramiko versions, whereas ``Ed25519Key.generate`` is not.)
+    """
+    import io as _io
+
+    paramiko = pytest.importorskip("paramiko")
+    key = paramiko.RSAKey.generate(2048)
+    buf = _io.StringIO()
+    key.write_private_key(buf)
+    return buf.getvalue()
+
+
+def test_load_pkey_from_string_roundtrip():
+    from grocery_list.git_backend import GitBackend
+
+    pem = _generate_ed25519_pem()
+    key = GitBackend._load_pkey_from_string(pem)
+    assert key is not None
+
+
+def test_load_pkey_from_string_without_trailing_newline():
+    """A textarea-pasted key missing its trailing newline must still load."""
+    from grocery_list.git_backend import GitBackend
+
+    pem = _generate_ed25519_pem().rstrip("\n")
+    key = GitBackend._load_pkey_from_string(pem)
+    assert key is not None
+
+
+def test_load_pkey_from_string_crlf_normalized():
+    """CRLF line endings (from some browsers) must be normalized and load."""
+    from grocery_list.git_backend import GitBackend
+
+    pem = _generate_ed25519_pem().replace("\n", "\r\n")
+    key = GitBackend._load_pkey_from_string(pem)
+    assert key is not None
+
+
+def test_load_pkey_from_string_invalid_raises():
+    from grocery_list.git_backend import GitAuthError, GitBackend
+
+    with pytest.raises(GitAuthError):
+        GitBackend._load_pkey_from_string("not a key")

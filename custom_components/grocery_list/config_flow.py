@@ -23,6 +23,11 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.selector import (
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
 from .const import (
     AUTH_HTTPS,
@@ -71,7 +76,11 @@ def _user_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
             ): str,
             vol.Optional(
                 CONF_SSH_KEY, default=defaults.get(CONF_SSH_KEY, "")
-            ): str,
+            ): TextSelector(
+                TextSelectorConfig(
+                    multiline=True, type=TextSelectorType.TEXT
+                )
+            ),
             vol.Optional(
                 CONF_SSH_KEY_PATH,
                 default=defaults.get(CONF_SSH_KEY_PATH, ""),
@@ -79,7 +88,9 @@ def _user_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
             vol.Optional(
                 CONF_HTTPS_TOKEN,
                 default=defaults.get(CONF_HTTPS_TOKEN, ""),
-            ): str,
+            ): TextSelector(
+                TextSelectorConfig(type=TextSelectorType.PASSWORD)
+            ),
         }
     )
 
@@ -102,10 +113,14 @@ class GroceryListConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not validate_url_for_method(url, method):
                 errors["base"] = "invalid_url"
             else:
+                # Preserve the key body verbatim (PEM is newline-sensitive);
+                # only trim leading/trailing blank lines/whitespace and
+                # normalize CRLF that browsers/textareas may introduce.
+                _raw_key = user_input.get(CONF_SSH_KEY) or ""
+                _key = _raw_key.replace("\r\n", "\n").strip("\n \t") or None
                 creds = GitCredentials(
                     method=method,
-                    ssh_key_data=(user_input.get(CONF_SSH_KEY) or "").strip()
-                    or None,
+                    ssh_key_data=_key,
                     ssh_key_path=(
                         user_input.get(CONF_SSH_KEY_PATH) or ""
                     ).strip()
