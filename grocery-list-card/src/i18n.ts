@@ -12,6 +12,7 @@ const EN: Dict = {
   category: "Category",
   uncategorized: "Uncategorized",
   clear_checked: "Clear checked",
+  checked_section: "Checked",
   undo: "Undo",
   redo: "Redo",
   sync: "Sync",
@@ -55,6 +56,7 @@ const EN: Dict = {
   delete_list: "Delete list",
   delete_list_confirm: "Delete this list and all its items? This cannot be undone by others once synced.",
   list_name_prompt: "New list name:",
+  rename_list_prompt: "Rename list to:",
 };
 
 const DE: Dict = {
@@ -65,6 +67,7 @@ const DE: Dict = {
   category: "Kategorie",
   uncategorized: "Ohne Kategorie",
   clear_checked: "Erledigte entfernen",
+  checked_section: "Erledigt",
   undo: "R\u00fcckg\u00e4ngig",
   redo: "Wiederholen",
   sync: "Sync",
@@ -108,6 +111,7 @@ const DE: Dict = {
   delete_list: "Liste l\u00f6schen",
   delete_list_confirm: "Diese Liste und alle ihre Artikel l\u00f6schen? Nach der Synchronisierung k\u00f6nnen andere dies nicht r\u00fcckg\u00e4ngig machen.",
   list_name_prompt: "Name der neuen Liste:",
+  rename_list_prompt: "Liste umbenennen in:",
 };
 
 const TABLES: Record<string, Dict> = { en: EN, de: DE };

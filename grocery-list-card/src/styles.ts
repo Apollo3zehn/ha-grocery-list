@@ -166,6 +166,21 @@ export const cardStyles = css`
     color: var(--gl-text);
   }
 
+  .gl-checked-section {
+    margin-top: 12px;
+    padding-top: 4px;
+    border-top: 2px solid var(--gl-divider);
+    opacity: 0.85;
+  }
+  .gl-checked-divider {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gl-muted);
+    margin: 6px 4px 2px;
+  }
+
   .gl-group { margin-top: 4px; }
   .gl-group-title {
     font-size: 0.78rem;
@@ -224,6 +239,7 @@ export const cardStyles = css`
     color: var(--gl-muted);
   }
 
+  .gl-edit { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; }
   .gl-edit-row { display: flex; gap: var(--gl-gap); flex: 1 1 auto; }
   .gl-edit-row input {
     flex: 1 1 auto;

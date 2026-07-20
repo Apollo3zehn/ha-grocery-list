@@ -31,6 +31,9 @@ export class GroceryListCard extends LitElement {
   @state() private _activeSlug?: string;
   @state() private _editingId: string | null = null;
   @state() private _editValue = "";
+  @state() private _editQty = 0;
+  @state() private _editUnit = "";
+  @state() private _editCategory: string | null = null;
 
   // New-item draft state (the add bar).
   @state() private _draftName = "";
@@ -325,12 +328,37 @@ export class GroceryListCard extends LitElement {
     if (!list.items.length) {
       return html`<div class="gl-empty">${t("empty_list")}</div>`;
     }
-    // Group by category, order groups by the category order, uncategorized last.
+    // Split unchecked (active shopping) from checked (done). Checked items move
+    // to a dedicated section at the very end of the card, themselves grouped by
+    // category, so the active list stays focused on what's still needed.
+    const unchecked = list.items.filter((i) => !i.checked);
+    const checked = list.items.filter((i) => i.checked);
+    return html`
+      ${this._renderCategoryGroups(unchecked, list.slug, t)}
+      ${
+        checked.length
+          ? html`<div class="gl-checked-section">
+              <div class="gl-checked-divider">${t("checked_section")}</div>
+              ${this._renderCategoryGroups(checked, list.slug, t)}
+            </div>`
+          : nothing
+      }
+    `;
+  }
+
+  // Render a set of items grouped by category, ordered by the user's category
+  // order (uncategorized last). Used for both the active and checked sections.
+  private _renderCategoryGroups(
+    items: Item[],
+    slug: string,
+    t: (k: string) => string
+  ): TemplateResult {
+    if (!items.length) return html``;
     const cats = this._categories();
     const order = new Map<string, number>();
     cats.forEach((c, i) => order.set(c.id, i));
     const groups = new Map<string, Item[]>();
-    for (const it of list.items) {
+    for (const it of items) {
       const key = it.category ?? NO_CAT;
       const arr = groups.get(key);
       if (arr) arr.push(it);
@@ -343,7 +371,9 @@ export class GroceryListCard extends LitElement {
     });
     return html`
       ${keys.map((key) => {
-        const items = this._sortSunk(groups.get(key)!);
+        const groupItems = [...groups.get(key)!].sort((a, b) =>
+          a.created_ts.localeCompare(b.created_ts)
+        );
         const label =
           key === NO_CAT
             ? t("uncategorized")
@@ -352,20 +382,12 @@ export class GroceryListCard extends LitElement {
           <div class="gl-group">
             <div class="gl-group-title">${label}</div>
             <ul class="gl-items">
-              ${items.map((it) => this._renderItem(it, list.slug, t))}
+              ${groupItems.map((it) => this._renderItem(it, slug, t))}
             </ul>
           </div>
         `;
       })}
     `;
-  }
-
-  // Checked items sink to the bottom of their own category (PLAN requirement).
-  private _sortSunk(items: Item[]): Item[] {
-    return [...items].sort((a, b) => {
-      if (a.checked !== b.checked) return a.checked ? 1 : -1;
-      return a.created_ts.localeCompare(b.created_ts);
-    });
   }
 
   private _renderItem(
@@ -409,26 +431,66 @@ export class GroceryListCard extends LitElement {
     t: (k: string) => string
   ): TemplateResult {
     return html`
-      <div class="gl-edit-row">
-        <input
-          .value=${this._editValue}
-          @input=${(e: Event) =>
-            (this._editValue = (e.target as HTMLInputElement).value)}
-          @keydown=${(e: KeyboardEvent) => {
-            if (e.key === "Enter") this._saveEdit(slug, it);
-            if (e.key === "Escape") this._cancelEdit();
-          }}
-        />
-        <button
-          class="gl-icon-btn"
-          title=${t("save")}
-          @click=${() => this._saveEdit(slug, it)}
-        >\u2713</button>
-        <button
-          class="gl-icon-btn"
-          title=${t("cancel")}
-          @click=${() => this._cancelEdit()}
-        >\u2715</button>
+      <div class="gl-edit">
+        <div class="gl-edit-row">
+          <input
+            .value=${this._editValue}
+            @input=${(e: Event) =>
+              (this._editValue = (e.target as HTMLInputElement).value)}
+            @keydown=${(e: KeyboardEvent) => {
+              if (e.key === "Enter") this._saveEdit(slug, it);
+              if (e.key === "Escape") this._cancelEdit();
+            }}
+          />
+          <button
+            class="gl-icon-btn"
+            title=${t("save")}
+            @click=${() => this._saveEdit(slug, it)}
+          >\u2713</button>
+          <button
+            class="gl-icon-btn"
+            title=${t("cancel")}
+            @click=${() => this._cancelEdit()}
+          >\u2715</button>
+        </div>
+        <div class="gl-qtyrow">
+          <div class="gl-stepper">
+            <button @click=${() => this._bumpEditQty(-1)}>\u2212</button>
+            <input
+              type="number"
+              .value=${String(this._editQty)}
+              @input=${(e: Event) =>
+                (this._editQty =
+                  parseFloat((e.target as HTMLInputElement).value) || 0)}
+            />
+            <button @click=${() => this._bumpEditQty(1)}>+</button>
+          </div>
+          <select
+            class="gl-unit"
+            .value=${this._editUnit}
+            @change=${(e: Event) =>
+              (this._editUnit = (e.target as HTMLSelectElement).value)}
+          >
+            ${this._units.map(
+              (u) => html`<option value=${u.id}>
+                ${u.labels[this._lang] ?? u.labels.en ?? u.id}
+              </option>`
+            )}
+          </select>
+          <select
+            class="gl-cat"
+            .value=${this._editCategory ?? NO_CAT}
+            @change=${(e: Event) => {
+              const v = (e.target as HTMLSelectElement).value;
+              this._editCategory = v === NO_CAT ? null : v;
+            }}
+          >
+            <option value=${NO_CAT}>${t("uncategorized")}</option>
+            ${this._categories().map(
+              (c) => html`<option value=${c.id}>${this._catLabel(c)}</option>`
+            )}
+          </select>
+        </div>
       </div>
     `;
   }
@@ -692,17 +754,48 @@ export class GroceryListCard extends LitElement {
   private _beginEdit(it: Item): void {
     this._editingId = it.id;
     this._editValue = it.name;
+    this._editQty = it.qty?.value ?? 0;
+    this._editUnit = it.qty?.unit ?? this._defaultUnit;
+    this._editCategory = it.category;
   }
 
   private _cancelEdit(): void {
     this._editingId = null;
     this._editValue = "";
+    this._editQty = 0;
+    this._editUnit = "";
+    this._editCategory = null;
+  }
+
+  private _bumpEditQty(delta: number): void {
+    this._editQty = Math.max(0, Math.round((this._editQty + delta) * 100) / 100);
   }
 
   private _saveEdit(slug: string, it: Item): void {
     const name = this._editValue.trim();
-    if (name && name !== it.name) {
-      void this._api?.updateItem(slug, it.id, { name });
+    if (!name || !this._api) {
+      this._cancelEdit();
+      return;
+    }
+    const changes: {
+      name?: string;
+      category?: string | null;
+      qty_value?: number | null;
+      qty_unit?: string | null;
+    } = {};
+    if (name !== it.name) changes.name = name;
+    if (this._editCategory !== it.category)
+      changes.category = this._editCategory;
+    const newQty = this._editQty || null;
+    const oldQty = it.qty?.value ?? null;
+    const newUnit = newQty ? this._editUnit || this._defaultUnit : null;
+    const oldUnit = it.qty?.unit ?? null;
+    if (newQty !== oldQty || newUnit !== oldUnit) {
+      changes.qty_value = newQty;
+      changes.qty_unit = newUnit;
+    }
+    if (Object.keys(changes).length) {
+      void this._api.updateItem(slug, it.id, changes);
     }
     this._cancelEdit();
   }
@@ -789,7 +882,7 @@ export class GroceryListCard extends LitElement {
   }
 
   private _renameListPrompt(l: ListSnapshot, t: (k: string) => string): void {
-    const next = window.prompt(t("list_name_prompt"), l.title);
+    const next = window.prompt(t("rename_list_prompt"), l.title);
     if (next === null) return;
     const title = next.trim();
     if (!title || title === l.title) return;
