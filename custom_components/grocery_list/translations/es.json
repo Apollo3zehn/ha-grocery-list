@@ -1,0 +1,67 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configuraci\u00f3n de la lista de la compra",
+        "description": "Elija c\u00f3mo esta instancia de Home Assistant almacena sus listas de la compra.",
+        "menu_options": {
+          "local": "Solo local (sin sincronizaci\u00f3n)",
+          "git": "Sincronizar con un repositorio git"
+        }
+      },
+      "local": {
+        "title": "Lista de la compra local",
+        "description": "D\u00e9 un nombre a esta instancia de Home Assistant. Sus listas se almacenan localmente y no se sincronizan con ning\u00fan repositorio git.",
+        "data": {
+          "identity": "Nombre de la instancia"
+        },
+        "data_description": {
+          "identity": "Este nombre se guarda con cada art\u00edculo que a\u00f1ade (el campo \u00aba\u00f1adido por\u00bb) y delimita su historial de deshacer/rehacer."
+        }
+      },
+      "git": {
+        "title": "Configuraci\u00f3n de la lista de la compra",
+        "description": "D\u00e9 un nombre a esta instancia de Home Assistant y con\u00e9ctela a su repositorio git. El repositorio se clonar\u00e1 para validar la conexi\u00f3n; la configuraci\u00f3n solo se completa si la clonaci\u00f3n tiene \u00e9xito.",
+        "data": {
+          "identity": "Nombre de la instancia",
+          "auth_method": "M\u00e9todo de autenticaci\u00f3n",
+          "repo_url": "URL del repositorio",
+          "branch": "Rama",
+          "ssh_key": "Clave privada SSH",
+          "ssh_key_path": "Ruta del archivo de clave privada SSH",
+          "https_token": "Token de acceso (opcional)"
+        },
+        "data_description": {
+          "identity": "Este nombre se guarda con cada art\u00edculo que a\u00f1ade (el campo \u00aba\u00f1adido por\u00bb) y delimita su historial de deshacer/rehacer.",
+          "auth_method": "Elija SSH (recomendado: una clave de despliegue limitada al repositorio) o HTTPS (un token de acceso limitado al repositorio).",
+          "repo_url": "Para SSH use git@host:propietario/repo.git. Para HTTPS use https://host/propietario/repo.git.",
+          "ssh_key": "Pegue la clave privada, o d\u00e9jelo vac\u00edo e indique una ruta de archivo abajo.",
+          "ssh_key_path": "Ruta a un archivo de clave privada montado (permisos 600). Preferido para que la clave no se almacene en Home Assistant.",
+          "https_token": "Token de \u00e1mbito limitado al repositorio. D\u00e9jelo vac\u00edo para repositorios p\u00fablicos."
+        }
+      }
+    },
+    "error": {
+      "clone_failed": "No se pudo clonar el repositorio. Compruebe la URL y las credenciales.",
+      "auth_failed": "Error de autenticaci\u00f3n. Compruebe su clave SSH o token de acceso.",
+      "invalid_url": "La URL del repositorio no es v\u00e1lida para el m\u00e9todo de autenticaci\u00f3n seleccionado.",
+      "key_read_failed": "No se pudo leer el archivo de clave SSH en la ruta indicada.",
+      "identity_required": "Introduzca un nombre de instancia."
+    },
+    "abort": {
+      "already_configured": "Este repositorio ya est\u00e1 configurado."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opciones de la lista de la compra",
+        "data": {
+          "push_debounce_seconds": "Retraso de env\u00edo tras el \u00faltimo cambio (segundos)",
+          "pull_interval_seconds": "Intervalo de descarga (segundos)",
+          "archive_retention_days": "Retenci\u00f3n del archivo (d\u00edas)"
+        }
+      }
+    }
+  }
+}

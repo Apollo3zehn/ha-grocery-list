@@ -1,0 +1,67 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Boodschappenlijst instellen",
+        "description": "Kies hoe deze Home Assistant-instantie haar boodschappenlijsten opslaat.",
+        "menu_options": {
+          "local": "Alleen lokaal (geen synchronisatie)",
+          "git": "Synchroniseren met een git-repository"
+        }
+      },
+      "local": {
+        "title": "Lokale boodschappenlijst",
+        "description": "Geef deze Home Assistant-instantie een naam. Je lijsten worden lokaal opgeslagen en niet gesynchroniseerd met een git-repository.",
+        "data": {
+          "identity": "Instantienaam"
+        },
+        "data_description": {
+          "identity": "Deze naam wordt bij elk item dat je toevoegt opgeslagen (veld \u2018toegevoegd door\u2019) en bepaalt de reikwijdte van je ongedaan maken/opnieuw uitvoeren-geschiedenis."
+        }
+      },
+      "git": {
+        "title": "Boodschappenlijst instellen",
+        "description": "Geef deze Home Assistant-instantie een naam en verbind haar met je git-repository. De repository wordt gekloond om de verbinding te valideren; de installatie wordt alleen voltooid als het klonen slaagt.",
+        "data": {
+          "identity": "Instantienaam",
+          "auth_method": "Authenticatiemethode",
+          "repo_url": "Repository-URL",
+          "branch": "Branch",
+          "ssh_key": "Priv\u00e9-SSH-sleutel",
+          "ssh_key_path": "Pad naar priv\u00e9-SSH-sleutelbestand",
+          "https_token": "Toegangstoken (optioneel)"
+        },
+        "data_description": {
+          "identity": "Deze naam wordt bij elk item dat je toevoegt opgeslagen (veld \u2018toegevoegd door\u2019) en bepaalt de reikwijdte van je ongedaan maken/opnieuw uitvoeren-geschiedenis.",
+          "auth_method": "Kies SSH (aanbevolen: een repo-specifieke deploy-sleutel) of HTTPS (een repo-specifiek toegangstoken).",
+          "repo_url": "Gebruik voor SSH git@host:eigenaar/repo.git. Gebruik voor HTTPS https://host/eigenaar/repo.git.",
+          "ssh_key": "Plak de priv\u00e9sleutel, of laat leeg en geef hieronder een bestandspad op.",
+          "ssh_key_path": "Pad naar een gekoppeld priv\u00e9sleutelbestand (rechten 600). Aanbevolen zodat de sleutel niet in Home Assistant wordt opgeslagen.",
+          "https_token": "Token met beperkte reikwijdte tot de repository. Laat leeg voor openbare repository's."
+        }
+      }
+    },
+    "error": {
+      "clone_failed": "Kon de repository niet klonen. Controleer de URL en inloggegevens.",
+      "auth_failed": "Authenticatie mislukt. Controleer je SSH-sleutel of toegangstoken.",
+      "invalid_url": "De repository-URL is niet geldig voor de geselecteerde authenticatiemethode.",
+      "key_read_failed": "Kon het SSH-sleutelbestand op het opgegeven pad niet lezen.",
+      "identity_required": "Voer een instantienaam in."
+    },
+    "abort": {
+      "already_configured": "Deze repository is al geconfigureerd."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Boodschappenlijst-opties",
+        "data": {
+          "push_debounce_seconds": "Push-vertraging na laatste wijziging (seconden)",
+          "pull_interval_seconds": "Pull-interval (seconden)",
+          "archive_retention_days": "Archiefbewaring (dagen)"
+        }
+      }
+    }
+  }
+}

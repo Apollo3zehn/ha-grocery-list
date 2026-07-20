@@ -1,0 +1,67 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Konfigurer handleliste",
+        "description": "Velg hvordan denne Home Assistant-instansen lagrer handlelistene sine.",
+        "menu_options": {
+          "local": "Kun lokalt (ingen synkronisering)",
+          "git": "Synkroniser med et git-depot"
+        }
+      },
+      "local": {
+        "title": "Lokal handleliste",
+        "description": "Gi denne Home Assistant-instansen et navn. Listene dine lagres lokalt og synkroniseres ikke med noe git-depot.",
+        "data": {
+          "identity": "Instansnavn"
+        },
+        "data_description": {
+          "identity": "Dette navnet lagres med hver vare du legger til (feltet \u00ablagt til av\u00bb) og avgrenser angre-/gjenta-historikken din."
+        }
+      },
+      "git": {
+        "title": "Konfigurer handleliste",
+        "description": "Gi denne Home Assistant-instansen et navn og koble den til git-depotet ditt. Depotet klones for \u00e5 validere tilkoblingen; oppsettet fullf\u00f8res bare hvis kloningen lykkes.",
+        "data": {
+          "identity": "Instansnavn",
+          "auth_method": "Autentiseringsmetode",
+          "repo_url": "Depot-URL",
+          "branch": "Gren",
+          "ssh_key": "Privat SSH-n\u00f8kkel",
+          "ssh_key_path": "Bane til privat SSH-n\u00f8kkelfil",
+          "https_token": "Tilgangstoken (valgfritt)"
+        },
+        "data_description": {
+          "identity": "Dette navnet lagres med hver vare du legger til (feltet \u00ablagt til av\u00bb) og avgrenser angre-/gjenta-historikken din.",
+          "auth_method": "Velg SSH (anbefalt: en depotbegrenset distribusjonsn\u00f8kkel) eller HTTPS (et depotbegrenset tilgangstoken).",
+          "repo_url": "For SSH bruk git@host:eier/repo.git. For HTTPS bruk https://host/eier/repo.git.",
+          "ssh_key": "Lim inn den private n\u00f8kkelen, eller la st\u00e5 tom og oppgi en filbane nedenfor.",
+          "ssh_key_path": "Bane til en montert privat n\u00f8kkelfil (rettigheter 600). Foretrukket slik at n\u00f8kkelen ikke lagres i Home Assistant.",
+          "https_token": "Token begrenset til depotet. La st\u00e5 tom for offentlige depoter."
+        }
+      }
+    },
+    "error": {
+      "clone_failed": "Kunne ikke klone depotet. Kontroller URL og legitimasjon.",
+      "auth_failed": "Autentisering mislyktes. Kontroller SSH-n\u00f8kkelen eller tilgangstokenet ditt.",
+      "invalid_url": "Depot-URL-en er ikke gyldig for den valgte autentiseringsmetoden.",
+      "key_read_failed": "Kunne ikke lese SSH-n\u00f8kkelfilen p\u00e5 den angitte banen.",
+      "identity_required": "Skriv inn et instansnavn."
+    },
+    "abort": {
+      "already_configured": "Dette depotet er allerede konfigurert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Alternativer for handleliste",
+        "data": {
+          "push_debounce_seconds": "Push-forsinkelse etter siste endring (sekunder)",
+          "pull_interval_seconds": "Pull-intervall (sekunder)",
+          "archive_retention_days": "Arkivoppbevaring (dager)"
+        }
+      }
+    }
+  }
+}

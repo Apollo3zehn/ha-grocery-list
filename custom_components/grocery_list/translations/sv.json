@@ -1,0 +1,67 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Konfigurera ink\u00f6pslista",
+        "description": "V\u00e4lj hur denna Home Assistant-instans lagrar sina ink\u00f6pslistor.",
+        "menu_options": {
+          "local": "Endast lokalt (ingen synkronisering)",
+          "git": "Synkronisera med ett git-arkiv"
+        }
+      },
+      "local": {
+        "title": "Lokal ink\u00f6pslista",
+        "description": "Ge denna Home Assistant-instans ett namn. Dina listor lagras lokalt och synkroniseras inte med n\u00e5got git-arkiv.",
+        "data": {
+          "identity": "Instansnamn"
+        },
+        "data_description": {
+          "identity": "Detta namn sparas med varje artikel du l\u00e4gger till (f\u00e4ltet \u201etillagd av\u201d) och avgr\u00e4nsar din \u00e5ngra/g\u00f6r om-historik."
+        }
+      },
+      "git": {
+        "title": "Konfigurera ink\u00f6pslista",
+        "description": "Ge denna Home Assistant-instans ett namn och anslut den till ditt git-arkiv. Arkivet klonas f\u00f6r att validera anslutningen; konfigurationen slutf\u00f6rs endast om kloningen lyckas.",
+        "data": {
+          "identity": "Instansnamn",
+          "auth_method": "Autentiseringsmetod",
+          "repo_url": "Arkivets URL",
+          "branch": "Gren",
+          "ssh_key": "Privat SSH-nyckel",
+          "ssh_key_path": "S\u00f6kv\u00e4g till privat SSH-nyckelfil",
+          "https_token": "\u00c5tkomsttoken (valfritt)"
+        },
+        "data_description": {
+          "identity": "Detta namn sparas med varje artikel du l\u00e4gger till (f\u00e4ltet \u201etillagd av\u201d) och avgr\u00e4nsar din \u00e5ngra/g\u00f6r om-historik.",
+          "auth_method": "V\u00e4lj SSH (rekommenderas: en arkivbegr\u00e4nsad distributionsnyckel) eller HTTPS (en arkivbegr\u00e4nsad \u00e5tkomsttoken).",
+          "repo_url": "F\u00f6r SSH anv\u00e4nd git@host:agare/repo.git. F\u00f6r HTTPS anv\u00e4nd https://host/agare/repo.git.",
+          "ssh_key": "Klistra in den privata nyckeln, eller l\u00e4mna tomt och ange en fils\u00f6kv\u00e4g nedan.",
+          "ssh_key_path": "S\u00f6kv\u00e4g till en monterad privat nyckelfil (beh\u00f6righeter 600). F\u00f6redras s\u00e5 att nyckeln inte lagras i Home Assistant.",
+          "https_token": "Token begr\u00e4nsad till arkivet. L\u00e4mna tomt f\u00f6r offentliga arkiv."
+        }
+      }
+    },
+    "error": {
+      "clone_failed": "Kunde inte klona arkivet. Kontrollera URL och autentiseringsuppgifter.",
+      "auth_failed": "Autentiseringen misslyckades. Kontrollera din SSH-nyckel eller \u00e5tkomsttoken.",
+      "invalid_url": "Arkivets URL \u00e4r inte giltig f\u00f6r den valda autentiseringsmetoden.",
+      "key_read_failed": "Kunde inte l\u00e4sa SSH-nyckelfilen p\u00e5 den angivna s\u00f6kv\u00e4gen.",
+      "identity_required": "Ange ett instansnamn."
+    },
+    "abort": {
+      "already_configured": "Detta arkiv \u00e4r redan konfigurerat."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Alternativ f\u00f6r ink\u00f6pslista",
+        "data": {
+          "push_debounce_seconds": "Push-f\u00f6rdr\u00f6jning efter senaste \u00e4ndring (sekunder)",
+          "pull_interval_seconds": "H\u00e4mtningsintervall (sekunder)",
+          "archive_retention_days": "Arkivbevarande (dagar)"
+        }
+      }
+    }
+  }
+}
