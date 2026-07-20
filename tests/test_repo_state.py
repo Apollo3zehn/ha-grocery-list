@@ -220,3 +220,81 @@ def test_same_id_recleared_appends_distinct_records():
     theirs = RepoState(archives={"a": [second]})
     merged = merge_repo_states(RepoState(), ours, theirs)
     assert len(merged.archives["a"]) == 2
+
+
+# -- list-level tombstones (deleted whole lists) ---------------------------
+
+
+def test_list_tombstones_roundtrip_files():
+    rs = RepoState(
+        lists={"gone": ListState(slug="gone", title="Gone")},
+        list_tombstones={
+            "gone": Tombstone(id="gone", deleted_ts="2026-01-02T00:00:00Z")
+        },
+    )
+    files = rs.to_files()
+    # Tombstoned list markdown is NOT written; the sidecar IS.
+    assert "lists/gone.md" not in files
+    assert ".grocery/list_tombstones.json" in files
+    restored = RepoState.from_files(files)
+    assert "gone" in restored.list_tombstones
+
+
+def test_merge_list_tombstone_suppresses_other_side():
+    # ours deleted the list; theirs still has it (never fetched the delete).
+    ours = RepoState(
+        list_tombstones={
+            "a": Tombstone(id="a", deleted_ts="2026-02-01T00:00:00Z")
+        }
+    )
+    theirs = RepoState(
+        lists={
+            "a": ListState(
+                slug="a",
+                title="A",
+                items={"i1": _item("i1", "X", ts="2026-01-01T00:00:00Z")},
+            )
+        }
+    )
+    merged = merge_repo_states(RepoState(), ours, theirs)
+    assert "a" in merged.list_tombstones
+    # Deletion enforced: no live items survive.
+    assert not merged.lists["a"].items
+    # And the tombstoned list is not serialized back to markdown.
+    assert "lists/a.md" not in merged.to_files()
+
+
+def test_merge_list_tombstone_resurrected_by_newer_edit():
+    # theirs re-populated the list AFTER ours deleted it -> list resurrects.
+    ours = RepoState(
+        list_tombstones={
+            "a": Tombstone(id="a", deleted_ts="2026-02-01T00:00:00Z")
+        }
+    )
+    theirs = RepoState(
+        lists={
+            "a": ListState(
+                slug="a",
+                title="A",
+                items={"i1": _item("i1", "X", ts="2026-03-01T00:00:00Z")},
+            )
+        }
+    )
+    merged = merge_repo_states(RepoState(), ours, theirs)
+    assert "a" not in merged.list_tombstones
+    assert "i1" in merged.lists["a"].items
+
+
+def test_merge_list_tombstone_newest_wins():
+    ours = RepoState(
+        list_tombstones={
+            "a": Tombstone(id="a", deleted_ts="2026-02-01T00:00:00Z")
+        }
+    )
+    theirs = RepoState(
+        list_tombstones={
+            "a": Tombstone(id="a", deleted_ts="2026-05-01T00:00:00Z")
+        }
+    )
+    merged = merge_repo_states(RepoState(), ours, theirs)
+    assert merged.list_tombstones["a"].deleted_ts == "2026-05-01T00:00:00Z"

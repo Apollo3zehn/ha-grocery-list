@@ -44,6 +44,10 @@ export class GroceryListCard extends LitElement {
   @state() private _newCatEn = "";
   @state() private _newCatDe = "";
 
+  // List manager sheet state.
+  @state() private _listManagerOpen = false;
+  @state() private _newListName = "";
+
   private _api?: GroceryApi;
   private _unsub?: () => Promise<void>;
   private _subscribedEntry?: string;
@@ -187,6 +191,7 @@ export class GroceryListCard extends LitElement {
       </ha-card>
       ${this._catManagerOpen ? this._renderCategoryManager(t) : nothing}
       ${this._archiveOpen ? this._renderArchive(t) : nothing}
+      ${this._listManagerOpen ? this._renderListManager(t) : nothing}
     `;
   }
 
@@ -217,6 +222,11 @@ export class GroceryListCard extends LitElement {
             title=${t("sync")}
             @click=${() => this._api?.sync()}
           >\u21bb</button>
+          <button
+            class="gl-icon-btn"
+            title=${t("manage_lists")}
+            @click=${() => (this._listManagerOpen = true)}
+          >\u{1F4CB}</button>
           <button
             class="gl-icon-btn"
             title=${t("view_archive")}
@@ -498,6 +508,73 @@ export class GroceryListCard extends LitElement {
     });
   }
 
+  private _renderListManager(t: (k: string) => string): TemplateResult {
+    const lists = this._snapshot?.lists ?? [];
+    return html`
+      <div
+        class="gl-overlay"
+        @click=${(e: Event) => {
+          if (e.target === e.currentTarget) this._closeListManager();
+        }}
+      >
+        <div class="gl-sheet">
+          <div class="gl-sheet-header">
+            <h3>${t("lists")}</h3>
+            <button
+              class="gl-icon-btn"
+              title=${t("close")}
+              @click=${() => this._closeListManager()}
+            >\u2715</button>
+          </div>
+
+          ${lists.length
+            ? html`<ul class="gl-catlist">
+                ${lists.map((l) => this._renderListRow(l, lists.length, t))}
+              </ul>`
+            : html`<div class="gl-empty">${t("no_lists")}</div>`}
+
+          <div class="gl-cat-new">
+            <input
+              .value=${this._newListName}
+              placeholder=${t("list_name")}
+              @input=${(e: Event) =>
+                (this._newListName = (e.target as HTMLInputElement).value)}
+              @keydown=${(e: KeyboardEvent) => {
+                if (e.key === "Enter") this._commitNewList();
+              }}
+            />
+            <button class="gl-add-btn" @click=${() => this._commitNewList()}>
+              ${t("add_list")}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private _renderListRow(
+    l: ListSnapshot,
+    total: number,
+    t: (k: string) => string
+  ): TemplateResult {
+    return html`
+      <li class="gl-catrow">
+        <span class="gl-cat-label" style="flex:1">${l.title}</span>
+        <button
+          class="gl-icon-btn"
+          title=${t("rename_list")}
+          @click=${() => this._renameListPrompt(l, t)}
+        >\u270e</button>
+        <button
+          class="gl-icon-btn"
+          title=${t("delete_list")}
+          ?disabled=${total <= 1}
+          @click=${() => this._deleteListConfirm(l, t)}
+        >\u2715</button>
+      </li>
+    `;
+  }
+
   private _renderCategoryManager(t: (k: string) => string): TemplateResult {
     const cats = this._categories();
     return html`
@@ -689,6 +766,49 @@ export class GroceryListCard extends LitElement {
   private _deleteCategory(c: Category, t: (k: string) => string): void {
     if (!window.confirm(t("delete_category_confirm"))) return;
     void this._api?.deleteCategory(c.id);
+  }
+
+  // ----- List manager handlers ------------------------------------------
+
+  private _closeListManager(): void {
+    this._listManagerOpen = false;
+    this._newListName = "";
+  }
+
+  private async _commitNewList(): Promise<void> {
+    const title = this._newListName.trim();
+    if (!title || !this._api) return;
+    this._newListName = "";
+    try {
+      const res = await this._api.createList(title);
+      // Switch to the newly-created list.
+      if (res?.list?.slug) this._activeSlug = res.list.slug;
+    } catch (_e) {
+      // Backend surfaces errors via the snapshot/sync badge; ignore here.
+    }
+  }
+
+  private _renameListPrompt(l: ListSnapshot, t: (k: string) => string): void {
+    const next = window.prompt(t("list_name_prompt"), l.title);
+    if (next === null) return;
+    const title = next.trim();
+    if (!title || title === l.title) return;
+    void this._api?.renameList(l.slug, title);
+  }
+
+  private _deleteListConfirm(
+    l: ListSnapshot,
+    t: (k: string) => string
+  ): void {
+    if (!window.confirm(t("delete_list_confirm"))) return;
+    void this._api?.deleteList(l.slug);
+    // If we deleted the active list, fall back to the first remaining one.
+    if (this._activeSlug === l.slug) {
+      const remaining = (this._snapshot?.lists ?? []).filter(
+        (x) => x.slug !== l.slug
+      );
+      this._activeSlug = remaining[0]?.slug;
+    }
   }
 }
 

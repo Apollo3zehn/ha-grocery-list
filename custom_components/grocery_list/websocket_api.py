@@ -45,6 +45,9 @@ WS_UPDATE_ITEM = f"{DOMAIN}/update_item"
 WS_SET_CHECKED = f"{DOMAIN}/set_checked"
 WS_DELETE_ITEM = f"{DOMAIN}/delete_item"
 WS_CLEAR_CHECKED = f"{DOMAIN}/clear_checked"
+WS_CREATE_LIST = f"{DOMAIN}/create_list"
+WS_RENAME_LIST = f"{DOMAIN}/rename_list"
+WS_DELETE_LIST = f"{DOMAIN}/delete_list"
 WS_CREATE_CATEGORY = f"{DOMAIN}/create_category"
 WS_UPDATE_CATEGORY = f"{DOMAIN}/update_category"
 WS_DELETE_CATEGORY = f"{DOMAIN}/delete_category"
@@ -90,6 +93,9 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_set_checked)
     websocket_api.async_register_command(hass, ws_delete_item)
     websocket_api.async_register_command(hass, ws_clear_checked)
+    websocket_api.async_register_command(hass, ws_create_list)
+    websocket_api.async_register_command(hass, ws_rename_list)
+    websocket_api.async_register_command(hass, ws_delete_list)
     websocket_api.async_register_command(hass, ws_create_category)
     websocket_api.async_register_command(hass, ws_update_category)
     websocket_api.async_register_command(hass, ws_delete_category)
@@ -282,6 +288,87 @@ def ws_clear_checked(
         return
     cleared = coordinator.async_clear_checked(msg["slug"])
     connection.send_result(msg["id"], {"cleared": cleared})
+
+
+# ---------------------------------------------------------------------------
+# List mutations (create/rename/delete whole lists)
+# ---------------------------------------------------------------------------
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_CREATE_LIST,
+        vol.Required("entry_id"): str,
+        vol.Required("title"): str,
+        vol.Optional("slug"): vol.Any(str, None),
+    }
+)
+@callback
+def ws_create_list(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    coordinator = _require_coordinator(hass, connection, msg)
+    if coordinator is None:
+        return
+    state = coordinator.async_create_list(msg["title"], slug=msg.get("slug"))
+    connection.send_result(
+        msg["id"], {"list": {"slug": state.slug, "title": state.title}}
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_RENAME_LIST,
+        vol.Required("entry_id"): str,
+        vol.Required("slug"): str,
+        vol.Required("title"): str,
+    }
+)
+@callback
+def ws_rename_list(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    coordinator = _require_coordinator(hass, connection, msg)
+    if coordinator is None:
+        return
+    state = coordinator.async_rename_list(msg["slug"], msg["title"])
+    if state is None:
+        connection.send_error(
+            msg["id"], websocket_api.const.ERR_NOT_FOUND, "List not found"
+        )
+        return
+    connection.send_result(
+        msg["id"], {"list": {"slug": state.slug, "title": state.title}}
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_DELETE_LIST,
+        vol.Required("entry_id"): str,
+        vol.Required("slug"): str,
+    }
+)
+@callback
+def ws_delete_list(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    coordinator = _require_coordinator(hass, connection, msg)
+    if coordinator is None:
+        return
+    ok = coordinator.async_delete_list(msg["slug"])
+    if not ok:
+        connection.send_error(
+            msg["id"], websocket_api.const.ERR_NOT_FOUND, "List not found"
+        )
+        return
+    connection.send_result(msg["id"], {"deleted": msg["slug"]})
 
 
 # ---------------------------------------------------------------------------

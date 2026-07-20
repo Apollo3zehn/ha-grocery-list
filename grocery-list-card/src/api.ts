@@ -71,6 +71,24 @@ export class GroceryApi {
     return this.send("clear_checked", { slug });
   }
 
+  createList(
+    title: string,
+    slug?: string | null
+  ): Promise<{ list: { slug: string; title: string } }> {
+    return this.send("create_list", { title, slug: slug ?? null });
+  }
+
+  renameList(
+    slug: string,
+    title: string
+  ): Promise<{ list: { slug: string; title: string } }> {
+    return this.send("rename_list", { slug, title });
+  }
+
+  deleteList(slug: string): Promise<{ deleted: string }> {
+    return this.send("delete_list", { slug });
+  }
+
   createCategory(
     labels: Record<string, string>,
     icon?: string | null

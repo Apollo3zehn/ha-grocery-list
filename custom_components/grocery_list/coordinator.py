@@ -54,6 +54,7 @@ from .const import (
     DEFAULT_PULL_INTERVAL,
     DEFAULT_PUSH_DEBOUNCE,
     DOMAIN,
+    LIST_TOMBSTONES_FILE,
     OPLOG_FILE,
     SYNC_ERROR,
     SYNC_OFFLINE,
@@ -76,7 +77,7 @@ from .models import (
     new_id,
     utcnow_iso,
 )
-from .oplog import ENTITY_CATEGORY, ENTITY_ITEM, Op, make_action_op
+from .oplog import ENTITY_CATEGORY, ENTITY_ITEM, ENTITY_LIST, Op, make_action_op
 from .repo_state import RepoState, merge_repo_states
 
 _LOGGER = logging.getLogger(__name__)
@@ -371,6 +372,7 @@ class GroceryCoordinator:
         ]
         paths.append(".grocery/categories.json")
         paths.append(OPLOG_FILE)
+        paths.append(LIST_TOMBSTONES_FILE)
         return paths
 
     async def _async_set_last_synced(self, sha: str | None) -> None:
@@ -398,6 +400,105 @@ class GroceryCoordinator:
             state = ListState(slug=slug, title=title or slug)
             self.state.lists[slug] = state
         return state
+
+    def _unique_slug(self, base: str) -> str:
+        """Return a repo-unique slug derived from ``base`` (title or slug).
+
+        Slugs are the on-disk file stems (``lists/<slug>.md``) and must be
+        filesystem-safe and unique. We lowercase, keep alphanumerics/hyphens,
+        collapse the rest to hyphens, then disambiguate against existing lists
+        AND list tombstones (so a new list never reuses a deleted slug, which
+        would otherwise be suppressed by the tombstone on merge).
+        """
+        import re
+
+        slug = re.sub(r"[^a-z0-9]+", "-", base.strip().lower()).strip("-")
+        slug = slug or "list"
+        taken = set(self.state.lists) | set(self.state.list_tombstones)
+        if slug not in taken:
+            return slug
+        i = 2
+        while f"{slug}-{i}" in taken:
+            i += 1
+        return f"{slug}-{i}"
+
+    @callback
+    def async_create_list(
+        self, title: str, *, slug: str | None = None
+    ) -> ListState:
+        """Create a new (empty) list and record an undoable op.
+
+        ``slug`` is derived from the title when not given and always made unique
+        against existing lists and list tombstones. The op's ``after`` holds the
+        list snapshot so undo can remove it and redo can restore it.
+        """
+        new_slug = self._unique_slug(slug or title)
+        state = ListState(slug=new_slug, title=title or new_slug)
+        self.state.lists[new_slug] = state
+        self.state.list_tombstones.pop(new_slug, None)
+        self._record_and_schedule(
+            make_action_op(
+                identity=self.identity,
+                entity=ENTITY_LIST,
+                scope=new_slug,
+                target_id=new_slug,
+                before=None,
+                after=state.to_dict(),
+                label="create_list",
+            )
+        )
+        return state
+
+    @callback
+    def async_rename_list(self, slug: str, title: str) -> ListState | None:
+        """Rename a list (title only; slug/file stem is stable). Records an op."""
+        state = self.state.lists.get(slug)
+        if state is None or slug in self.state.list_tombstones:
+            return None
+        before = state.to_dict()
+        state.title = title
+        self._record_and_schedule(
+            make_action_op(
+                identity=self.identity,
+                entity=ENTITY_LIST,
+                scope=slug,
+                target_id=slug,
+                before=before,
+                after=state.to_dict(),
+                label="rename_list",
+            )
+        )
+        return state
+
+    @callback
+    def async_delete_list(self, slug: str) -> bool:
+        """Delete a whole list, leaving a list-level tombstone (no resurrect).
+
+        The tombstone is stored centrally (``.grocery/list_tombstones.json``) so
+        another device that still has the markdown won't resurrect it on merge.
+        The op's ``before`` holds the full list snapshot so undo restores every
+        item; its ``after`` is None (deleted).
+        """
+        state = self.state.lists.get(slug)
+        if state is None or slug in self.state.list_tombstones:
+            return False
+        before = state.to_dict()
+        del self.state.lists[slug]
+        self.state.list_tombstones[slug] = Tombstone(
+            id=slug, deleted_ts=utcnow_iso(), reason="deleted"
+        )
+        self._record_and_schedule(
+            make_action_op(
+                identity=self.identity,
+                entity=ENTITY_LIST,
+                scope=slug,
+                target_id=slug,
+                before=before,
+                after=None,
+                label="delete_list",
+            )
+        )
+        return True
 
     @callback
     def async_add_item(
@@ -739,6 +840,21 @@ class GroceryCoordinator:
                 state.tombstones.pop(op.target_id, None)
             return
 
+        if op.entity == ENTITY_LIST:
+            slug = op.target_id
+            if snapshot is None:
+                # delete the whole list, leaving a list-level tombstone.
+                self.state.lists.pop(slug, None)
+                self.state.list_tombstones[slug] = Tombstone(
+                    id=slug, deleted_ts=utcnow_iso(), reason="deleted"
+                )
+            else:
+                # (re)create/restore the list from its snapshot and clear any
+                # list-level tombstone so it isn't suppressed on serialize/merge.
+                self.state.lists[slug] = ListState.from_dict(snapshot)
+                self.state.list_tombstones.pop(slug, None)
+            return
+
         # Category entity.
         if op.target_id == "__order__":
             if snapshot and "order" in snapshot:
@@ -810,6 +926,7 @@ class GroceryCoordinator:
                     ],
                 }
                 for slug, state in sorted(self.state.lists.items())
+                if slug not in self.state.list_tombstones
             ],
             "categories": [
                 c.to_dict() for c in self.state.categories.ordered()

@@ -169,6 +169,83 @@ async def test_undo_update_reverts_fields(coordinator: GroceryCoordinator):
     assert coordinator.state.lists["rewe"].items[item.id].name == "Tomatoes"
 
 
+async def test_create_list_records_op_and_switch(coordinator: GroceryCoordinator):
+    state = coordinator.async_create_list("Weekend BBQ")
+    assert state.slug == "weekend-bbq"
+    assert state.title == "Weekend BBQ"
+    assert "weekend-bbq" in coordinator.state.lists
+    assert len(coordinator.state.oplog.ops) == 1
+    assert coordinator.sync_state == SYNC_PENDING
+
+
+async def test_create_list_unique_slug(coordinator: GroceryCoordinator):
+    a = coordinator.async_create_list("Groceries")
+    b = coordinator.async_create_list("Groceries")
+    assert a.slug == "groceries"
+    assert b.slug == "groceries-2"
+
+
+async def test_create_list_avoids_tombstoned_slug(coordinator: GroceryCoordinator):
+    coordinator.async_create_list("Groceries")
+    coordinator.async_delete_list("groceries")
+    # A new list with the same title must not reuse the tombstoned slug, or the
+    # tombstone would suppress it on merge.
+    again = coordinator.async_create_list("Groceries")
+    assert again.slug != "groceries"
+
+
+async def test_rename_list_changes_title(coordinator: GroceryCoordinator):
+    coordinator.async_create_list("Old")
+    renamed = coordinator.async_rename_list("old", "New Name")
+    assert renamed is not None
+    assert renamed.title == "New Name"
+    assert coordinator.state.lists["old"].title == "New Name"
+
+
+async def test_rename_missing_list_returns_none(coordinator: GroceryCoordinator):
+    assert coordinator.async_rename_list("nope", "X") is None
+
+
+async def test_delete_list_leaves_list_tombstone(coordinator: GroceryCoordinator):
+    coordinator.async_create_list("Trip")
+    coordinator.async_add_item("trip", "Water")
+    assert coordinator.async_delete_list("trip") is True
+    assert "trip" not in coordinator.state.lists
+    assert "trip" in coordinator.state.list_tombstones
+
+
+async def test_delete_missing_list_returns_false(coordinator: GroceryCoordinator):
+    assert coordinator.async_delete_list("nope") is False
+
+
+async def test_delete_list_excluded_from_snapshot(coordinator: GroceryCoordinator):
+    coordinator.async_create_list("Keep")
+    coordinator.async_create_list("Drop")
+    coordinator.async_delete_list("drop")
+    slugs = {l["slug"] for l in coordinator.snapshot()["lists"]}
+    assert "keep" in slugs
+    assert "drop" not in slugs
+
+
+async def test_undo_delete_list_restores_items(coordinator: GroceryCoordinator):
+    coordinator.async_create_list("Trip")
+    item = coordinator.async_add_item("trip", "Water")
+    coordinator.async_delete_list("trip")
+    assert coordinator.async_undo() is True
+    # Undo of a list delete => list + its items restored, tombstone cleared.
+    assert "trip" in coordinator.state.lists
+    assert item.id in coordinator.state.lists["trip"].items
+    assert "trip" not in coordinator.state.list_tombstones
+
+
+async def test_undo_create_list_removes_it(coordinator: GroceryCoordinator):
+    coordinator.async_create_list("Ephemeral")
+    assert coordinator.async_undo() is True
+    # Undo of a create => list removed and a list-level tombstone left.
+    assert "ephemeral" not in coordinator.state.lists
+    assert "ephemeral" in coordinator.state.list_tombstones
+
+
 async def test_purge_removes_old_and_leaves_recent(
     coordinator: GroceryCoordinator,
 ):

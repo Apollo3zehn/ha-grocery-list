@@ -34,6 +34,7 @@ from .categories import CategorySet, merge_category_sets
 from .const import (
     ARCHIVE_DIR,
     CATEGORIES_FILE,
+    LIST_TOMBSTONES_FILE,
     LISTS_DIR,
     OPLOG_FILE,
     TOMBSTONES_DIR,
@@ -74,6 +75,12 @@ class RepoState:
     # from ListState so the semantic list merge stays untouched; archives merge
     # by simple union on their stable key.
     archives: dict[str, list[ArchivedItem]] = field(default_factory=dict)
+    # List-level tombstones (deleted whole lists), keyed by slug. Kept in a
+    # central sidecar (``.grocery/list_tombstones.json``) so a list deletion on
+    # one device isn't resurrected by another that still carries the markdown;
+    # merged by last-writer-wins vs. any surviving list content (mirrors the
+    # category tombstone rule).
+    list_tombstones: dict[str, Tombstone] = field(default_factory=dict)
 
     # -- loading ------------------------------------------------------------
 
@@ -131,11 +138,20 @@ class RepoState:
         categories = CategorySet.from_json(_text(CATEGORIES_FILE) or "")
         oplog = OpLog.parse(_text(OPLOG_FILE) or "")
 
+        # Central list-level tombstones (deleted whole lists).
+        list_tombstones: dict[str, Tombstone] = {}
+        raw_lt = _text(LIST_TOMBSTONES_FILE)
+        if raw_lt and raw_lt.strip():
+            for d in json.loads(raw_lt):
+                tomb = Tombstone.from_dict(d)
+                list_tombstones[tomb.id] = tomb
+
         return cls(
             lists=lists,
             categories=categories,
             oplog=oplog,
             archives=archives,
+            list_tombstones=list_tombstones,
         )
 
     # -- serialization ------------------------------------------------------
@@ -157,6 +173,9 @@ class RepoState:
         labels = self.categories.labels_map(category_labels_locale)
 
         for slug, state in self.lists.items():
+            # A tombstoned (deleted) list is not written back to disk.
+            if slug in self.list_tombstones:
+                continue
             glist = state.to_list()
             glist.slug = slug
             md = markdown_io.serialize(
@@ -185,6 +204,14 @@ class RepoState:
 
         out[CATEGORIES_FILE] = self.categories.to_json().encode("utf-8")
         out[OPLOG_FILE] = self.oplog.serialize().encode("utf-8")
+        out[LIST_TOMBSTONES_FILE] = (
+            json.dumps(
+                [t.to_dict() for t in self.list_tombstones.values()],
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        ).encode("utf-8")
         return out
 
 
@@ -211,13 +238,61 @@ def merge_repo_states(
     )
     merged_oplog = merge_oplogs(base.oplog, ours.oplog, theirs.oplog)
     merged_archives = _merge_archives(base, ours, theirs)
+    merged_list_tombs = _merge_list_tombstones(base, ours, theirs, merged_lists)
 
     return RepoState(
         lists=merged_lists,
         categories=merged_categories,
         oplog=merged_oplog,
         archives=merged_archives,
+        list_tombstones=merged_list_tombs,
     )
+
+
+def _merge_list_tombstones(
+    base: RepoState,
+    ours: RepoState,
+    theirs: RepoState,
+    merged_lists: dict[str, ListState],
+) -> dict[str, Tombstone]:
+    """Merge list-level tombstones, resolving delete-vs-edit per slug (PLAN §3).
+
+    Union of tombstoned slugs across sides; the newest tombstone wins. A list is
+    resurrected (tombstone dropped) only if the merged list has a live item with
+    an ``updated_ts`` strictly newer than the deletion — i.e. someone actively
+    re-populated it after the delete. Otherwise the deletion stands and the
+    merged list's live items are cleared so the deletion actually takes effect.
+    """
+    all_slugs = (
+        set(base.list_tombstones)
+        | set(ours.list_tombstones)
+        | set(theirs.list_tombstones)
+    )
+    merged: dict[str, Tombstone] = {}
+    for slug in all_slugs:
+        tombs = [
+            t
+            for t in (
+                ours.list_tombstones.get(slug),
+                theirs.list_tombstones.get(slug),
+                base.list_tombstones.get(slug),
+            )
+            if t is not None
+        ]
+        newest = max(tombs, key=lambda t: t.deleted_ts)
+        lstate = merged_lists.get(slug)
+        newest_edit = ""
+        if lstate is not None and lstate.items:
+            newest_edit = max(it.updated_ts for it in lstate.items.values())
+        if newest_edit > newest.deleted_ts:
+            # Active re-population after deletion -> resurrect the list.
+            continue
+        merged[slug] = newest
+        # Enforce the deletion: drop any lingering live items so the list is
+        # empty (its markdown won't be written while tombstoned).
+        if lstate is not None:
+            lstate.items.clear()
+    return merged
 
 
 def _merge_archives(

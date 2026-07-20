@@ -42,6 +42,7 @@ from .models import new_id, utcnow_iso
 # Entity kinds an op can affect.
 ENTITY_ITEM = "item"
 ENTITY_CATEGORY = "category"
+ENTITY_LIST = "list"
 
 
 @dataclass(slots=True)

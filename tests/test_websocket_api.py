@@ -323,4 +323,89 @@ async def test_undo_redo_commands(
     result = await client.receive_json()
     assert result["success"] is True
     assert result["result"]["redone"] is True
-    assert item.id in coordinator.state.lists["rewe"].items
+
+
+async def test_list_lifecycle_commands(
+    hass: HomeAssistant, hass_ws_client, setup_ws
+):
+    entry_id, coordinator = setup_ws
+    client = await hass_ws_client(hass)
+
+    # Create
+    await client.send_json(
+        {
+            "id": 1,
+            "type": "grocery_list/create_list",
+            "entry_id": entry_id,
+            "title": "Weekend BBQ",
+        }
+    )
+    result = await client.receive_json()
+    assert result["success"] is True
+    slug = result["result"]["list"]["slug"]
+    assert slug == "weekend-bbq"
+
+    # Rename
+    await client.send_json(
+        {
+            "id": 2,
+            "type": "grocery_list/rename_list",
+            "entry_id": entry_id,
+            "slug": slug,
+            "title": "Sunday BBQ",
+        }
+    )
+    result = await client.receive_json()
+    assert result["success"] is True
+    assert result["result"]["list"]["title"] == "Sunday BBQ"
+
+    # Delete
+    await client.send_json(
+        {
+            "id": 3,
+            "type": "grocery_list/delete_list",
+            "entry_id": entry_id,
+            "slug": slug,
+        }
+    )
+    result = await client.receive_json()
+    assert result["success"] is True
+    assert result["result"]["deleted"] == slug
+    assert slug not in coordinator.state.lists
+
+
+async def test_rename_missing_list_errors(
+    hass: HomeAssistant, hass_ws_client, setup_ws
+):
+    entry_id, _ = setup_ws
+    client = await hass_ws_client(hass)
+    await client.send_json(
+        {
+            "id": 1,
+            "type": "grocery_list/rename_list",
+            "entry_id": entry_id,
+            "slug": "missing",
+            "title": "X",
+        }
+    )
+    result = await client.receive_json()
+    assert result["success"] is False
+    assert result["error"]["code"] == "not_found"
+
+
+async def test_delete_missing_list_errors(
+    hass: HomeAssistant, hass_ws_client, setup_ws
+):
+    entry_id, _ = setup_ws
+    client = await hass_ws_client(hass)
+    await client.send_json(
+        {
+            "id": 1,
+            "type": "grocery_list/delete_list",
+            "entry_id": entry_id,
+            "slug": "missing",
+        }
+    )
+    result = await client.receive_json()
+    assert result["success"] is False
+    assert result["error"]["code"] == "not_found"

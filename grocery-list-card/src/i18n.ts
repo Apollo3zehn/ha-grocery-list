@@ -45,6 +45,16 @@ const EN: Dict = {
   select_list_entry: "Grocery List instance",
   no_entries: "No Grocery List integration found. Add it under Settings \u2192 Devices & Services first.",
   title: "Title (optional)",
+  manage_lists: "Manage lists",
+  lists: "Lists",
+  new_list: "New list",
+  list_name: "List name",
+  add_list: "Add list",
+  no_lists: "No lists yet. Create one above.",
+  rename_list: "Rename list",
+  delete_list: "Delete list",
+  delete_list_confirm: "Delete this list and all its items? This cannot be undone by others once synced.",
+  list_name_prompt: "New list name:",
 };
 
 const DE: Dict = {
@@ -88,6 +98,16 @@ const DE: Dict = {
   select_list_entry: "Einkaufslisten-Instanz",
   no_entries: "Keine Einkaufslisten-Integration gefunden. F\u00fcge sie zuerst unter Einstellungen \u2192 Ger\u00e4te & Dienste hinzu.",
   title: "Titel (optional)",
+  manage_lists: "Listen verwalten",
+  lists: "Listen",
+  new_list: "Neue Liste",
+  list_name: "Listenname",
+  add_list: "Liste hinzuf\u00fcgen",
+  no_lists: "Noch keine Listen. Erstelle oben eine.",
+  rename_list: "Liste umbenennen",
+  delete_list: "Liste l\u00f6schen",
+  delete_list_confirm: "Diese Liste und alle ihre Artikel l\u00f6schen? Nach der Synchronisierung k\u00f6nnen andere dies nicht r\u00fcckg\u00e4ngig machen.",
+  list_name_prompt: "Name der neuen Liste:",
 };
 
 const TABLES: Record<string, Dict> = { en: EN, de: DE };
