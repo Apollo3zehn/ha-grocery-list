@@ -29,6 +29,7 @@ from __future__ import annotations
 import io
 import logging
 import os
+import shutil
 from dataclasses import dataclass
 from typing import Callable
 
@@ -204,26 +205,27 @@ class GitBackend:
     def clone(self) -> None:
         """Clone the remote into the working directory.
 
+        Handles the common "brand new, empty repository" case: a freshly
+        created remote has no commits and no target branch, so a normal clone
+        fails with "<branch> is not a valid branch or tag" / "neither
+        origin_head nor branch are provided". In that case we initialize an
+        empty local repo whose HEAD points at the target branch, ready for the
+        first commit + push (which creates the branch on the remote).
+
         Raises GitAuthError/GitCloneError on failure so the config flow can map
         them to friendly messages and only accept config on success (PLAN §1).
         """
+        url = self._url if self._creds.method == "ssh" else self._https_url()
         try:
             if self._creds.method == "ssh":
                 vendor = self._ssh_vendor()
                 if vendor is not None:
-                    from dulwich.client import get_ssh_vendor  # noqa: F401
                     import dulwich.client as dclient
 
                     dclient.get_ssh_vendor = lambda: vendor
-                porcelain.clone(
-                    self._url, self._work_dir, branch=self._branch.encode()
-                )
-            else:
-                porcelain.clone(
-                    self._https_url(),
-                    self._work_dir,
-                    branch=self._branch.encode(),
-                )
+            porcelain.clone(
+                url, self._work_dir, branch=self._branch.encode()
+            )
             self._repo = Repo(self._work_dir)
         except GitAuthError:
             raise
@@ -231,7 +233,41 @@ class GitBackend:
             msg = str(err).lower()
             if "auth" in msg or "permission" in msg or "denied" in msg:
                 raise GitAuthError(str(err)) from err
+            if self._is_empty_remote_error(msg):
+                # Reachable + authorized, just empty. Initialize locally so the
+                # first sync can push the initial branch.
+                self._init_empty_working_repo()
+                return
             raise GitCloneError(str(err)) from err
+
+    @staticmethod
+    def _is_empty_remote_error(msg: str) -> bool:
+        """Heuristic: does this clone error mean the remote is empty?"""
+        return (
+            "is not a valid branch or tag" in msg
+            or "neither origin_head nor branch" in msg
+            or "empty repository" in msg
+            or "no such ref was fetched" in msg
+        )
+
+    def _init_empty_working_repo(self) -> None:
+        """Create a local repo with HEAD on the target branch for an empty remote.
+
+        A partial clone may have created the working dir; clear it first so
+        ``porcelain.init`` starts clean. ``fetch``/``push`` talk to the remote
+        via ``self._url`` directly, so we only need the local branch to exist.
+        """
+        if os.path.isdir(self._work_dir):
+            shutil.rmtree(self._work_dir)
+        os.makedirs(self._work_dir, exist_ok=True)
+        repo = porcelain.init(self._work_dir)
+        repo.refs.set_symbolic_ref(
+            b"HEAD", b"refs/heads/" + self._branch.encode()
+        )
+        config = repo.get_config()
+        config.set((b"remote", b"origin"), b"url", self._url.encode())
+        config.write_to_path()
+        self._repo = repo
 
     def open(self) -> None:
         """Open an already-cloned working repo."""

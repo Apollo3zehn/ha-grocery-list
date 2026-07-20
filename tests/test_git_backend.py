@@ -114,6 +114,32 @@ def test_remove_files(remote_repo, tmp_path):
     assert not os.path.isfile(os.path.join(work, "lists", "rewe.md"))
 
 
+def test_clone_empty_remote_inits_local_branch(tmp_path):
+    """Cloning a brand-new EMPTY remote must succeed by initializing locally.
+
+    A freshly created remote has no commits and no target branch. ``clone``
+    should detect this, init a local repo with HEAD on the target branch, and
+    leave us ready to make the first commit + push (which creates the branch
+    on the remote).
+    """
+    remote = str(tmp_path / "empty.git")
+    _init_bare_remote(remote)
+    work = str(tmp_path / "work")
+    backend = GitBackend(work, remote, _creds(), branch="main")
+    backend.clone()
+    # HEAD points at the target branch even though no commit exists yet.
+    assert backend.repo.refs.read_ref(b"HEAD") == b"ref: refs/heads/main"
+    assert backend.head_commit_sha() is None
+    # First commit + push creates the branch on the remote.
+    backend.write_files({"lists/default.md": b"# Default\n"})
+    backend.commit("init", "pi <pi@host>")
+    backend.push()
+    from dulwich.repo import Repo
+
+    bare = Repo(remote)
+    assert bare.refs.read_ref(b"refs/heads/main") is not None
+
+
 def test_validate_url_for_method():
     from grocery_list.git_backend import validate_url_for_method
 
