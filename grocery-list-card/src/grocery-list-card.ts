@@ -19,6 +19,12 @@ const NO_CAT = "__none__";
 // Sentinel value for the "create a new category" option in the dropdowns.
 const NEW_CAT = "__new__";
 
+// Composite identity key for an item: mirrors the backend identity_key
+// (category, name) -> `${category ?? ""}|${name}`.
+function itemKey(it: { category: string | null; name: string }): string {
+  return `${it.category ?? ""}|${it.name}`;
+}
+
 @customElement("grocery-list-card")
 export class GroceryListCard extends LitElement {
   static styles = cardStyles;
@@ -385,7 +391,7 @@ export class GroceryListCard extends LitElement {
     return html`
       ${keys.map((key) => {
         const groupItems = [...groups.get(key)!].sort((a, b) =>
-          a.created_ts.localeCompare(b.created_ts)
+          a.name.localeCompare(b.name)
         );
         const label = key === NO_CAT ? t("uncategorized") : key;
         return html`
@@ -405,7 +411,7 @@ export class GroceryListCard extends LitElement {
     slug: string,
     t: (k: string) => string
   ): TemplateResult {
-    if (this._editingId === it.id) {
+    if (this._editingId === itemKey(it)) {
       return html`<li class="gl-item">${this._renderEdit(it, slug, t)}</li>`;
     }
     const qty = it.qty
@@ -415,7 +421,7 @@ export class GroceryListCard extends LitElement {
       <li class="gl-item ${it.checked ? "checked" : ""}">
         <button
           class="gl-check ${it.checked ? "on" : ""}"
-          @click=${() => this._api?.setChecked(slug, it.id, !it.checked)}
+          @click=${() => this._api?.setChecked(slug, it.category, it.name, !it.checked)}
         >
           ${it.checked ? "\u2713" : ""}
         </button>
@@ -429,7 +435,7 @@ export class GroceryListCard extends LitElement {
         <button
           class="gl-icon-btn"
           title=${t("delete")}
-          @click=${() => this._api?.deleteItem(slug, it.id)}
+          @click=${() => this._api?.deleteItem(slug, it.category, it.name)}
         >\u2715</button>
       </li>
     `;
@@ -593,7 +599,7 @@ export class GroceryListCard extends LitElement {
   private _restoreArchived(a: ArchivedItem): void {
     const slug = this._activeSlug;
     if (!slug) return;
-    void this._api?.restoreArchived(slug, a.item.id, a.archived_ts);
+    void this._api?.restoreArchived(slug, a.item.category, a.item.name);
   }
 
   private _fmtArchiveTs(ts: string): string {
@@ -705,7 +711,7 @@ export class GroceryListCard extends LitElement {
   }
 
   private _beginEdit(it: Item): void {
-    this._editingId = it.id;
+    this._editingId = itemKey(it);
     this._editValue = it.name;
     this._editQty = it.qty?.value ?? 0;
     this._editUnit = it.qty?.unit ?? this._defaultUnit;
@@ -731,14 +737,14 @@ export class GroceryListCard extends LitElement {
       return;
     }
     const changes: {
-      name?: string;
-      category?: string | null;
+      new_name?: string;
+      new_category?: string | null;
       qty_value?: number | null;
       qty_unit?: string | null;
     } = {};
-    if (name !== it.name) changes.name = name;
+    if (name !== it.name) changes.new_name = name;
     if (this._editCategory !== it.category)
-      changes.category = this._editCategory;
+      changes.new_category = this._editCategory;
     const newQty = this._editQty || null;
     const oldQty = it.qty?.value ?? null;
     const newUnit = newQty ? this._editUnit || this._defaultUnit : null;
@@ -748,7 +754,7 @@ export class GroceryListCard extends LitElement {
       changes.qty_unit = newUnit;
     }
     if (Object.keys(changes).length) {
-      void this._api.updateItem(slug, it.id, changes);
+      void this._api.updateItem(slug, it.category, it.name, changes);
     }
     this._cancelEdit();
   }

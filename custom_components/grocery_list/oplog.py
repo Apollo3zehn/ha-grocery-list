@@ -30,9 +30,24 @@ Ops are replayed in insertion order (via a monotonic ``seq``).
 
 from __future__ import annotations
 
+import secrets
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
-from .models import new_id, utcnow_iso
+
+def utcnow_iso() -> str:
+    """Return the current UTC time as an ISO-8601 string with 'Z' suffix.
+
+    Used only for op-log entry timestamps/ordering (in-memory undo/redo); not
+    persisted to disk or synced.
+    """
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def new_id(prefix: str = "") -> str:
+    """Generate a short, collision-resistant id for in-memory op-log entries."""
+    token = secrets.token_hex(4)
+    return f"{prefix}{token}" if prefix else token
 
 # Entity kinds an op can affect.
 ENTITY_ITEM = "item"

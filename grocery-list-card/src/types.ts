@@ -8,15 +8,10 @@ export interface Quantity {
 }
 
 export interface Item {
-  id: string;
   name: string;
   category: string | null;
   qty: Quantity | null;
   checked: boolean;
-  added_by: string;
-  created_ts: string;
-  updated_ts: string;
-  checked_ts: string | null;
 }
 
 export interface ListSnapshot {

@@ -179,9 +179,10 @@ def ws_add_item(
         vol.Required("type"): WS_UPDATE_ITEM,
         vol.Required("entry_id"): str,
         vol.Required("slug"): str,
-        vol.Required("item_id"): str,
-        vol.Optional("name"): str,
+        vol.Required("name"): str,
         vol.Optional("category"): vol.Any(str, None),
+        vol.Optional("new_name"): str,
+        vol.Optional("new_category"): vol.Any(str, None),
         vol.Optional("qty_value"): vol.Any(float, int, None),
         vol.Optional("qty_unit"): vol.Any(str, None),
     }
@@ -196,11 +197,19 @@ def ws_update_item(
     if coordinator is None:
         return
     # Only forward keys the caller actually sent so we don't clobber fields.
+    # ``new_name``/``new_category`` map to the item's ``name``/``category``
+    # fields; ``name``/``category`` identify the target item (its key).
     changes: dict[str, Any] = {}
-    for key in ("name", "category", "qty_value", "qty_unit"):
+    if "new_name" in msg:
+        changes["new_name"] = msg["new_name"]
+    if "new_category" in msg:
+        changes["new_category"] = msg["new_category"]
+    for key in ("qty_value", "qty_unit"):
         if key in msg:
             changes[key] = msg[key]
-    item = coordinator.async_update_item(msg["slug"], msg["item_id"], **changes)
+    item = coordinator.async_update_item(
+        msg["slug"], msg.get("category"), msg["name"], **changes
+    )
     if item is None:
         connection.send_error(
             msg["id"], websocket_api.const.ERR_NOT_FOUND, "Item not found"
@@ -214,7 +223,8 @@ def ws_update_item(
         vol.Required("type"): WS_SET_CHECKED,
         vol.Required("entry_id"): str,
         vol.Required("slug"): str,
-        vol.Required("item_id"): str,
+        vol.Required("name"): str,
+        vol.Optional("category"): vol.Any(str, None),
         vol.Required("checked"): bool,
     }
 )
@@ -228,7 +238,7 @@ def ws_set_checked(
     if coordinator is None:
         return
     item = coordinator.async_set_checked(
-        msg["slug"], msg["item_id"], msg["checked"]
+        msg["slug"], msg.get("category"), msg["name"], msg["checked"]
     )
     if item is None:
         connection.send_error(
@@ -243,7 +253,8 @@ def ws_set_checked(
         vol.Required("type"): WS_DELETE_ITEM,
         vol.Required("entry_id"): str,
         vol.Required("slug"): str,
-        vol.Required("item_id"): str,
+        vol.Required("name"): str,
+        vol.Optional("category"): vol.Any(str, None),
     }
 )
 @callback
@@ -255,13 +266,18 @@ def ws_delete_item(
     coordinator = _require_coordinator(hass, connection, msg)
     if coordinator is None:
         return
-    ok = coordinator.async_delete_item(msg["slug"], msg["item_id"])
+    ok = coordinator.async_delete_item(
+        msg["slug"], msg.get("category"), msg["name"]
+    )
     if not ok:
         connection.send_error(
             msg["id"], websocket_api.const.ERR_NOT_FOUND, "Item not found"
         )
         return
-    connection.send_result(msg["id"], {"deleted": msg["item_id"]})
+    connection.send_result(
+        msg["id"],
+        {"deleted": {"category": msg.get("category"), "name": msg["name"]}},
+    )
 
 
 @websocket_api.websocket_command(
@@ -289,8 +305,8 @@ def ws_clear_checked(
         vol.Required("type"): WS_RESTORE_ARCHIVED,
         vol.Required("entry_id"): str,
         vol.Required("slug"): str,
-        vol.Required("item_id"): str,
-        vol.Optional("archived_ts"): vol.Any(str, None),
+        vol.Required("name"): str,
+        vol.Optional("category"): vol.Any(str, None),
     }
 )
 @callback
@@ -304,7 +320,7 @@ def ws_restore_archived(
     if coordinator is None:
         return
     item = coordinator.async_restore_archived(
-        msg["slug"], msg["item_id"], msg.get("archived_ts")
+        msg["slug"], msg.get("category"), msg["name"]
     )
     if item is None:
         connection.send_error(

@@ -24,25 +24,15 @@ AUTH_HTTPS = "https"
 # Options keys (sync cadence, configurable with sensible defaults)
 CONF_PUSH_DEBOUNCE = "push_debounce_seconds"
 CONF_PULL_INTERVAL = "pull_interval_seconds"
-CONF_ARCHIVE_RETENTION = "archive_retention_days"
 
 # Sensible defaults
 DEFAULT_PUSH_DEBOUNCE = 60          # commit + push 60s after last change
 DEFAULT_PULL_INTERVAL = 300         # pull every 5 minutes
-DEFAULT_ARCHIVE_RETENTION = 90      # auto-purge archived items after 90 days
 DEFAULT_BRANCH = "main"
 
-# Repo layout (paths within the synced git repo)
+# Repo layout (paths within the synced git repo). Only ``lists/*.md`` are
+# tracked; there is no sync metadata (tombstones/timestamps/ids) on disk.
 LISTS_DIR = "lists"
-ARCHIVE_DIR = "archive"
-META_DIR = ".grocery"
-# Central registry of list-level tombstones (deleted lists) so a delete on one
-# device isn't resurrected by another that still has the list markdown. list
-# *existence*/title live in the markdown.
-LIST_TOMBSTONES_FILE = f"{META_DIR}/list_tombstones.json"
-# Per-list tombstones live outside the human-readable markdown so list files
-# stay clean on the git host; they are recombined into ListState for merging.
-TOMBSTONES_DIR = f"{META_DIR}/tombstones"
 
 # Sync states surfaced to the UI
 SYNC_SYNCED = "synced"
@@ -56,6 +46,8 @@ SYNC_LOCAL = "local"
 # Storage
 STORAGE_VERSION = 1
 STORAGE_KEY = f"{DOMAIN}.state"
+# Archive (cleared items) is persisted via an HA Store, entirely out of git.
+ARCHIVE_STORAGE_KEY = "grocery_list_archive"
 
 # Frontend (custom Lovelace card) — the built card is shipped inside the
 # integration and served as a Lovelace resource so users don't add it manually.

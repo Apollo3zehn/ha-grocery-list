@@ -1,190 +1,113 @@
-"""Semantic 3-way merge engine (PLAN §2, §3).
+"""Semantic 3-way merge engine.
 
-This is the heart of conflict resolution. Git is only a transport/history layer;
-ALL merging happens here, on parsed data models, never on raw text. This keeps
-the logic VCS-agnostic (we could swap dulwich for the git binary without
-touching this module) and more correct for the domain than textual merge.
+Git is only a transport/history layer; ALL merging happens here, on parsed data
+models, never on raw text. This keeps the logic VCS-agnostic and more correct
+for the domain than a textual merge.
 
-The merge is a classic 3-way merge over three ``ListState`` snapshots:
+The merge is a classic 3-way merge over three ``GroceryList`` snapshots, keyed
+by item identity ``(category, name)``:
 
-- ``base``:  the common ancestor = the locally persisted ``last_synced_commit``.
-- ``ours``:  the local working state.
+- ``base``:   the common ancestor = the git merge-base of ours and theirs.
+- ``ours``:   the local working state.
 - ``theirs``: the remote state fetched from the git host.
 
-Merge rules (per item id):
+Merge rules (per identity key ``f"{category or ''}|{name}"``):
 
-- Presence/tombstones:
-  - If an id is tombstoned on either side, the item is removed in the result,
-    UNLESS the other side has a *newer* edit to that item than the deletion
-    timestamp (delete-vs-edit resolved by last-writer-wins). The newest
-    tombstone timestamp is retained so the deletion propagates.
-  - Additions (id present on a side but not in base) are unioned in.
-- Field-level for surviving items (name, category, qty): last-writer-wins by
-  ``updated_ts`` (string compare works because timestamps are canonical UTC).
-- ``checked``: "checked wins" tiebreak — if either side has the item checked,
-  the result is checked; ``checked_ts`` takes the earliest non-null check time
-  among sides that have it checked (the moment it first became bought).
-- ``title``: last-writer-wins is not tracked per-field; we take ``ours`` unless
-  it equals base and theirs changed it, in which case we take theirs.
+- Present on both sides -> merge fields (checked = ours or theirs; quantity a
+  deterministic winner).
+- Present on exactly one side and NOT in base -> an addition; keep it.
+- Present in base but missing on a side -> a deletion; honor it (drop).
+- ``title``: prefer the side that changed vs base; tie -> ours.
 
-The function is pure and deterministic: given the same three inputs it always
-returns the same result, regardless of argument order semantics beyond the
-defined ours/theirs roles (and for commutative-safe fields the outcome is the
-same if ours/theirs are swapped).
+The function is pure and deterministic.
 """
 
 from __future__ import annotations
 
-from .models import Item, ListState, Tombstone
+from .models import GroceryList, Item, identity_key
 
 
-def _max_ts(*values: str | None) -> str:
-    """Return the lexicographically greatest (newest) non-empty timestamp."""
-    present = [v for v in values if v]
-    return max(present) if present else ""
+def key(item: Item) -> str:
+    """Return the merge key for an item: ``f"{category or ''}|{name}"``."""
+    return identity_key(item.category, item.name)
 
 
-def _merge_checked(ours: Item | None, theirs: Item | None) -> tuple[bool, str | None]:
-    """Apply the 'checked wins' rule and compute the resulting checked_ts.
+def _merge_item_fields(ours: Item, theirs: Item) -> Item:
+    """Merge two versions of the same item (same identity key).
 
-    If either side is checked, the result is checked. The checked_ts is the
-    earliest moment any side marked it checked (when it first became bought).
-    If neither is checked, result is unchecked with no checked_ts.
+    ``checked`` uses the 'checked wins' rule. For quantity we pick a
+    deterministic winner when the two sides differ: the side that has a
+    quantity (preferring ``ours`` when both do). name/category are identical by
+    construction (they form the key).
     """
-    sides = [s for s in (ours, theirs) if s is not None]
-    checked = any(s.checked for s in sides)
-    if not checked:
-        return False, None
-    check_times = [
-        s.checked_ts for s in sides if s.checked and s.checked_ts
-    ]
-    return True, (min(check_times) if check_times else None)
-
-
-def _merge_item_fields(base: Item | None, ours: Item, theirs: Item) -> Item:
-    """Merge two versions of the same item using last-writer-wins per field.
-
-    ``base`` is the ancestor version if present (unused for LWW directly but
-    kept for clarity/future field-level 3-way refinements). For scalar content
-    fields we pick the side with the newer ``updated_ts``; ties favor ``ours``
-    for determinism. ``checked`` uses the dedicated 'checked wins' rule.
-    """
-    winner = ours if ours.updated_ts >= theirs.updated_ts else theirs
-
-    checked, checked_ts = _merge_checked(ours, theirs)
-
-    # created_ts and added_by are immutable facts of first creation; keep the
-    # earliest created_ts and the added_by that goes with it.
-    if ours.created_ts <= theirs.created_ts:
-        created_ts, added_by = ours.created_ts, ours.added_by
+    checked = ours.checked or theirs.checked
+    if ours.qty == theirs.qty:
+        qty = ours.qty
+    elif ours.qty is None:
+        qty = theirs.qty
+    elif theirs.qty is None:
+        qty = ours.qty
     else:
-        created_ts, added_by = theirs.created_ts, theirs.added_by
-
+        # Both present and differ -> deterministic last-writer-wins: ours.
+        qty = ours.qty
     return Item(
-        id=ours.id,
-        name=winner.name,
-        category=winner.category,
-        qty=winner.qty,
+        name=ours.name,
+        category=ours.category,
+        qty=qty,
         checked=checked,
-        added_by=added_by,
-        created_ts=created_ts,
-        updated_ts=_max_ts(ours.updated_ts, theirs.updated_ts),
-        checked_ts=checked_ts,
     )
 
 
-def _resolve_tombstone(
-    item: Item | None,
-    our_tomb: Tombstone | None,
-    their_tomb: Tombstone | None,
-) -> Tombstone | None:
-    """Return the surviving tombstone if the item should stay deleted.
-
-    Delete-vs-edit: if the merged/live item has an ``updated_ts`` strictly newer
-    than the newest tombstone, the edit wins and the item is resurrected (return
-    None). Otherwise the newest tombstone wins.
-    """
-    tombs = [t for t in (our_tomb, their_tomb) if t is not None]
-    if not tombs:
-        return None
-    newest = max(tombs, key=lambda t: t.deleted_ts)
-    if item is not None and item.updated_ts > newest.deleted_ts:
-        # A newer edit than the deletion -> resurrect (edit wins).
-        return None
-    return newest
-
-
-def merge(base: ListState, ours: ListState, theirs: ListState) -> ListState:
+def merge(
+    base: GroceryList, ours: GroceryList, theirs: GroceryList
+) -> GroceryList:
     """Perform a semantic 3-way merge of three list snapshots.
 
-    Returns a new ``ListState`` containing the merged live items and the
-    surviving tombstones. Pure and deterministic.
+    Returns a new ``GroceryList`` with the merged items. Pure and deterministic.
     """
-    all_ids = (
-        set(base.items)
-        | set(ours.items)
-        | set(theirs.items)
-        | set(base.tombstones)
-        | set(ours.tombstones)
-        | set(theirs.tombstones)
-    )
+    base_items = {key(it): it for it in base.items}
+    our_items = {key(it): it for it in ours.items}
+    their_items = {key(it): it for it in theirs.items}
 
-    merged_items: dict[str, Item] = {}
-    merged_tombs: dict[str, Tombstone] = {}
+    all_keys = set(base_items) | set(our_items) | set(their_items)
 
-    for iid in all_ids:
-        our_item = ours.items.get(iid)
-        their_item = theirs.items.get(iid)
-        base_item = base.items.get(iid)
-        our_tomb = ours.tombstones.get(iid)
-        their_tomb = theirs.tombstones.get(iid)
+    merged: list[Item] = []
+    for k in all_keys:
+        in_base = k in base_items
+        our_item = our_items.get(k)
+        their_item = their_items.get(k)
 
-        # First compute the candidate live item (ignoring tombstones).
         if our_item and their_item:
-            candidate = _merge_item_fields(base_item, our_item, their_item)
+            merged.append(_merge_item_fields(our_item, their_item))
         elif our_item or their_item:
-            # Present on exactly one side.
-            single = our_item or their_item
-            if base_item is None:
-                # Addition on one side -> include it.
-                candidate = single
+            single = our_item if our_item is not None else their_item
+            assert single is not None
+            if in_base:
+                # Existed in base, gone on one side -> deletion; honor it only
+                # if the surviving side is unchanged from base. If the
+                # surviving side edited the item, that edit is an addition of a
+                # new identity when name/category changed; for same-key edits
+                # (qty/checked) we keep the surviving version.
+                base_item = base_items[k]
+                if single == base_item:
+                    # Unchanged on the surviving side -> the other side deleted
+                    # it; drop.
+                    continue
+                merged.append(single)  # edited on surviving side -> keep
             else:
-                # Existed in base, deleted on the other side (missing) ->
-                # treat missing side as a deletion candidate; keep single for
-                # now and let tombstone logic decide. If the other side simply
-                # didn't modify, single still represents the latest.
-                candidate = single
-        else:
-            candidate = None
+                merged.append(single)  # addition -> keep
+        # absent on both -> nothing
 
-        # Now apply tombstone resolution.
-        surviving_tomb = _resolve_tombstone(candidate, our_tomb, their_tomb)
-
-        # Implicit deletion: item existed in base, present on one side only,
-        # and absent (not merely unmodified) on the other. We can't distinguish
-        # "absent because deleted" from "absent because never fetched" without a
-        # tombstone, so we rely on explicit tombstones for deletions. Absent on
-        # one side with no tombstone => treated as still-present (union-safe).
-
-        if surviving_tomb is not None:
-            merged_tombs[iid] = surviving_tomb
-            # Item stays deleted; do not add to merged_items.
-            continue
-
-        if candidate is not None:
-            merged_items[iid] = candidate
-
-    # Title: last-writer-wins-ish. Prefer a side that changed from base.
+    # Title: prefer a side that changed from base; tie -> ours.
     if ours.title != base.title and theirs.title == base.title:
         title = ours.title
     elif theirs.title != base.title and ours.title == base.title:
         title = theirs.title
     else:
-        title = ours.title  # tie or both changed -> ours
+        title = ours.title
 
-    return ListState(
+    return GroceryList(
         slug=ours.slug or theirs.slug or base.slug,
         title=title,
-        items=merged_items,
-        tombstones=merged_tombs,
+        items=merged,
     )

@@ -59,7 +59,7 @@ async def test_add_item_service(hass: HomeAssistant, setup_services):
         {"slug": "rewe", "name": "Tomatoes", "qty_value": 2, "qty_unit": "pcs"},
         blocking=True,
     )
-    items = list(coordinator.state.lists["rewe"].items.values())
+    items = coordinator.state.lists["rewe"].items
     assert len(items) == 1
     assert items[0].name == "Tomatoes"
     assert items[0].qty.value == 2
@@ -67,22 +67,21 @@ async def test_add_item_service(hass: HomeAssistant, setup_services):
 
 async def test_clear_checked_service(hass: HomeAssistant, setup_services):
     _entry_id, coordinator = setup_services
-    a = coordinator.async_add_item("rewe", "A")
-    coordinator.async_set_checked("rewe", a.id, True)
+    coordinator.async_add_item("rewe", "A")
+    coordinator.async_set_checked("rewe", None, "A", True)
     await hass.services.async_call(
         DOMAIN, "clear_checked", {"slug": "rewe"}, blocking=True
     )
-    assert a.id not in coordinator.state.lists["rewe"].items
-    assert a.id in coordinator.state.lists["rewe"].tombstones
+    assert coordinator.state.lists["rewe"].items == []
 
 
 async def test_undo_redo_services(hass: HomeAssistant, setup_services):
     _entry_id, coordinator = setup_services
-    item = coordinator.async_add_item("rewe", "Bread")
+    coordinator.async_add_item("rewe", "Bread")
     await hass.services.async_call(DOMAIN, "undo", {}, blocking=True)
-    assert item.id not in coordinator.state.lists["rewe"].items
+    assert coordinator.state.lists["rewe"].items == []
     await hass.services.async_call(DOMAIN, "redo", {}, blocking=True)
-    assert item.id in coordinator.state.lists["rewe"].items
+    assert coordinator.state.lists["rewe"].items[0].name == "Bread"
 
 
 async def test_default_entry_resolution(hass: HomeAssistant, setup_services):

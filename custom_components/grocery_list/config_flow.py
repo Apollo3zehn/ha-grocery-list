@@ -10,8 +10,8 @@ The flow **validates by test-clone**: it clones into a throwaway temp directory
 in an executor thread and only creates the config entry if the clone succeeds
 (PLAN §1). This guarantees the integration never accepts unusable credentials.
 
-The options flow exposes the configurable sync cadence and archive retention
-with sensible defaults (PLAN §5, §4.6).
+The options flow exposes the configurable sync cadence with sensible defaults
+(PLAN §5).
 """
 
 from __future__ import annotations
@@ -32,7 +32,6 @@ from homeassistant.helpers.selector import (
 from .const import (
     AUTH_HTTPS,
     AUTH_SSH,
-    CONF_ARCHIVE_RETENTION,
     CONF_AUTH_METHOD,
     CONF_BRANCH,
     CONF_HTTPS_TOKEN,
@@ -43,7 +42,6 @@ from .const import (
     CONF_SSH_KEY,
     CONF_SSH_KEY_PATH,
     CONF_SYNC_ENABLED,
-    DEFAULT_ARCHIVE_RETENTION,
     DEFAULT_BRANCH,
     DEFAULT_PULL_INTERVAL,
     DEFAULT_PUSH_DEBOUNCE,
@@ -235,7 +233,7 @@ class GroceryListConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class GroceryListOptionsFlow(config_entries.OptionsFlow):
-    """Handle sync cadence + retention options (PLAN §5, §4.6)."""
+    """Handle sync cadence options (PLAN §5)."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         self._entry = config_entry
@@ -261,12 +259,6 @@ class GroceryListOptionsFlow(config_entries.OptionsFlow):
                         CONF_PULL_INTERVAL, DEFAULT_PULL_INTERVAL
                     ),
                 ): vol.All(int, vol.Range(min=30, max=86400)),
-                vol.Required(
-                    CONF_ARCHIVE_RETENTION,
-                    default=opts.get(
-                        CONF_ARCHIVE_RETENTION, DEFAULT_ARCHIVE_RETENTION
-                    ),
-                ): vol.All(int, vol.Range(min=1, max=3650)),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

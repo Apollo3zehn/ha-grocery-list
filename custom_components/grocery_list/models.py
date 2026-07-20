@@ -4,42 +4,27 @@ These models are the single source of truth. Markdown files are merely a
 serialization of these models (see ``markdown_io``), and all conflict
 resolution is performed on these structured models (see ``merge``) rather than
 on raw text. Keeping the models VCS-agnostic and serialization-agnostic is what
-allows git to be a pure transport layer (see PLAN §2).
+allows git to be a pure transport layer.
 
-All models are plain dataclasses with explicit ``to_dict``/``from_dict`` helpers
-so they can be embedded in Markdown metadata, JSON (categories), or JSONL
-(op-log) without pulling in Home Assistant or any VCS dependency.
+Item identity is ``(category, name)`` — there are no persisted ids, timestamps,
+or tombstones. Deletions are detected structurally via a git merge-base (see
+``merge``), and the archive of cleared items lives in an HA ``Store`` rather
+than in git.
 """
 
 from __future__ import annotations
 
-import secrets
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
-
-# ---------------------------------------------------------------------------
-# Time helpers
-# ---------------------------------------------------------------------------
 
 
-def utcnow_iso() -> str:
-    """Return the current UTC time as an ISO-8601 string with 'Z' suffix.
+def identity_key(category: str | None, name: str) -> str:
+    """Return the merge/identity key for an item: ``f"{category or ''}|{name}"``.
 
-    A single canonical timestamp format is used everywhere so that string
-    comparison of timestamps is equivalent to chronological comparison, which
-    the merge engine relies on for last-writer-wins.
+    Item identity is the ``(category, name)`` pair; this collapses that pair to
+    a single stable string used as a dict key by the merge engine and the
+    coordinator's mutation lookups.
     """
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def new_id(prefix: str = "") -> str:
-    """Generate a short, stable, collision-resistant id.
-
-    Ids are the basis for all semantic merging, so they must be unique across
-    devices without coordination. A random token is sufficient.
-    """
-    token = secrets.token_hex(4)
-    return f"{prefix}{token}" if prefix else token
+    return f"{category or ''}|{name}"
 
 
 # ---------------------------------------------------------------------------
@@ -78,46 +63,36 @@ class Quantity:
 class Item:
     """A single grocery list item.
 
-    Fields map directly to PLAN §4.1. ``updated_ts`` drives last-writer-wins in
-    the merge engine; ``checked`` uses a "checked wins" tiebreak. ``category``
-    references a user-managed category id or is ``None`` (uncategorized).
+    Identity is ``(category, name)``. ``qty`` is optional; ``checked`` uses a
+    "checked wins" tiebreak in the merge engine. ``category`` is a user-facing
+    category name or ``None`` (uncategorized).
     """
 
-    id: str
     name: str
     category: str | None = None
     qty: Quantity | None = None
     checked: bool = False
-    added_by: str = ""
-    created_ts: str = field(default_factory=utcnow_iso)
-    updated_ts: str = field(default_factory=utcnow_iso)
-    checked_ts: str | None = None
+
+    @property
+    def key(self) -> str:
+        """The identity key ``f"{category or ''}|{name}"``."""
+        return identity_key(self.category, self.name)
 
     def to_dict(self) -> dict:
         return {
-            "id": self.id,
             "name": self.name,
             "category": self.category,
             "qty": self.qty.to_dict() if self.qty else None,
             "checked": self.checked,
-            "added_by": self.added_by,
-            "created_ts": self.created_ts,
-            "updated_ts": self.updated_ts,
-            "checked_ts": self.checked_ts,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> "Item":
         return cls(
-            id=str(data["id"]),
             name=str(data["name"]),
             category=data.get("category"),
             qty=Quantity.from_dict(data.get("qty")),
             checked=bool(data.get("checked", False)),
-            added_by=str(data.get("added_by", "")),
-            created_ts=str(data.get("created_ts") or utcnow_iso()),
-            updated_ts=str(data.get("updated_ts") or utcnow_iso()),
-            checked_ts=data.get("checked_ts"),
         )
 
     def copy(self, **changes) -> "Item":
@@ -128,77 +103,6 @@ class Item:
 # ---------------------------------------------------------------------------
 # GroceryList
 # ---------------------------------------------------------------------------
-
-
-@dataclass(slots=True)
-class Tombstone:
-    """A record that an item (or category) was removed (PLAN §3, §4.6).
-
-    Tombstones carry a timestamp so the merge engine can resolve delete-vs-edit
-    conflicts by last-writer-wins, and a ``reason`` so the UI/archive flow can
-    distinguish a plain delete from a "clear checked" archival or an auto-purge.
-    Tombstones are stored outside the human-readable list files (in the synced
-    ``.grocery`` metadata / derived from the op-log) to keep list files clean.
-    """
-
-    id: str
-    deleted_ts: str = field(default_factory=utcnow_iso)
-    reason: str = "deleted"  # deleted | cleared | archived | purged
-
-    def to_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "deleted_ts": self.deleted_ts,
-            "reason": self.reason,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "Tombstone":
-        return cls(
-            id=str(data["id"]),
-            deleted_ts=str(data.get("deleted_ts") or utcnow_iso()),
-            reason=str(data.get("reason", "deleted")),
-        )
-
-
-@dataclass(slots=True)
-class ArchivedItem:
-    """An item that was cleared out of a live list into the archive (PLAN §4.6).
-
-    Wraps the original :class:`Item` snapshot (preserving id, name, qty, etc.)
-    plus ``archived_ts`` — the moment it left the live list. ``reason`` mirrors
-    the tombstone reason (``cleared`` for the clear-checked flow). Archived
-    items are append-only and browsable in a subview; auto-purge removes those
-    older than the configured retention window.
-
-    The archive is keyed by ``(id, archived_ts)`` so re-archiving an id later
-    (after it was re-added and cleared again) appends a new record rather than
-    clobbering the prior one.
-    """
-
-    item: "Item"
-    archived_ts: str = field(default_factory=utcnow_iso)
-    reason: str = "cleared"
-
-    @property
-    def key(self) -> str:
-        """Stable de-dupe key for append-only merge (id + archived_ts)."""
-        return f"{self.item.id}@{self.archived_ts}"
-
-    def to_dict(self) -> dict:
-        return {
-            "item": self.item.to_dict(),
-            "archived_ts": self.archived_ts,
-            "reason": self.reason,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "ArchivedItem":
-        return cls(
-            item=Item.from_dict(data["item"]),
-            archived_ts=str(data.get("archived_ts") or utcnow_iso()),
-            reason=str(data.get("reason", "cleared")),
-        )
 
 
 @dataclass(slots=True)
@@ -215,9 +119,11 @@ class GroceryList:
     title: str
     items: list[Item] = field(default_factory=list)
 
-    def item_by_id(self, item_id: str) -> Item | None:
+    def item_by_key(self, category: str | None, name: str) -> Item | None:
+        """Return the item matching ``(category, name)`` or ``None``."""
+        target = identity_key(category, name)
         for item in self.items:
-            if item.id == item_id:
+            if item.key == target:
                 return item
         return None
 
@@ -234,62 +140,4 @@ class GroceryList:
             slug=str(data["slug"]),
             title=str(data["title"]),
             items=[Item.from_dict(d) for d in data.get("items", [])],
-        )
-
-
-@dataclass(slots=True)
-class ListState:
-    """The full mergeable state of one list: its items plus tombstones.
-
-    The merge engine (see ``merge``) operates on ``ListState`` rather than on
-    ``GroceryList`` alone, because correct 3-way merging requires knowing which
-    ids were intentionally removed (tombstones) versus never seen. The list
-    files on disk store only live items; tombstones live in synced ``.grocery``
-    metadata and are recombined into a ``ListState`` for merging.
-    """
-
-    slug: str
-    title: str
-    items: dict[str, Item] = field(default_factory=dict)
-    tombstones: dict[str, Tombstone] = field(default_factory=dict)
-
-    @classmethod
-    def from_list(
-        cls, glist: GroceryList, tombstones: list[Tombstone] | None = None
-    ) -> "ListState":
-        return cls(
-            slug=glist.slug,
-            title=glist.title,
-            items={it.id: it for it in glist.items},
-            tombstones={t.id: t for t in (tombstones or [])},
-        )
-
-    def to_list(self) -> GroceryList:
-        """Project back to a GroceryList (live items only)."""
-        return GroceryList(
-            slug=self.slug,
-            title=self.title,
-            items=list(self.items.values()),
-        )
-
-    def to_dict(self) -> dict:
-        return {
-            "slug": self.slug,
-            "title": self.title,
-            "items": [it.to_dict() for it in self.items.values()],
-            "tombstones": [t.to_dict() for t in self.tombstones.values()],
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "ListState":
-        return cls(
-            slug=str(data["slug"]),
-            title=str(data["title"]),
-            items={
-                d["id"]: Item.from_dict(d) for d in data.get("items", [])
-            },
-            tombstones={
-                d["id"]: Tombstone.from_dict(d)
-                for d in data.get("tombstones", [])
-            },
         )

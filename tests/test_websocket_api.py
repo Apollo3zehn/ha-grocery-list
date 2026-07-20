@@ -122,7 +122,7 @@ async def test_update_item_command(
     hass: HomeAssistant, hass_ws_client, setup_ws
 ):
     entry_id, coordinator = setup_ws
-    item = coordinator.async_add_item("rewe", "Bread")
+    coordinator.async_add_item("rewe", "Bread")
     client = await hass_ws_client(hass)
     await client.send_json(
         {
@@ -130,8 +130,8 @@ async def test_update_item_command(
             "type": "grocery_list/update_item",
             "entry_id": entry_id,
             "slug": "rewe",
-            "item_id": item.id,
-            "name": "Whole Grain Bread",
+            "name": "Bread",
+            "new_name": "Whole Grain Bread",
         }
     )
     result = await client.receive_json()
@@ -150,8 +150,8 @@ async def test_update_missing_item_errors(
             "type": "grocery_list/update_item",
             "entry_id": entry_id,
             "slug": "rewe",
-            "item_id": "missing",
-            "name": "X",
+            "name": "missing",
+            "new_name": "X",
         }
     )
     result = await client.receive_json()
@@ -163,7 +163,7 @@ async def test_set_checked_command(
     hass: HomeAssistant, hass_ws_client, setup_ws
 ):
     entry_id, coordinator = setup_ws
-    item = coordinator.async_add_item("rewe", "Bread")
+    coordinator.async_add_item("rewe", "Bread")
     client = await hass_ws_client(hass)
     await client.send_json(
         {
@@ -171,7 +171,7 @@ async def test_set_checked_command(
             "type": "grocery_list/set_checked",
             "entry_id": entry_id,
             "slug": "rewe",
-            "item_id": item.id,
+            "name": "Bread",
             "checked": True,
         }
     )
@@ -184,7 +184,7 @@ async def test_delete_item_command(
     hass: HomeAssistant, hass_ws_client, setup_ws
 ):
     entry_id, coordinator = setup_ws
-    item = coordinator.async_add_item("rewe", "Bread")
+    coordinator.async_add_item("rewe", "Bread")
     client = await hass_ws_client(hass)
     await client.send_json(
         {
@@ -192,12 +192,12 @@ async def test_delete_item_command(
             "type": "grocery_list/delete_item",
             "entry_id": entry_id,
             "slug": "rewe",
-            "item_id": item.id,
+            "name": "Bread",
         }
     )
     result = await client.receive_json()
     assert result["success"] is True
-    assert result["result"]["deleted"] == item.id
+    assert result["result"]["deleted"] == {"category": None, "name": "Bread"}
 
 
 async def test_clear_checked_command(
@@ -206,7 +206,7 @@ async def test_clear_checked_command(
     entry_id, coordinator = setup_ws
     a = coordinator.async_add_item("rewe", "A")
     coordinator.async_add_item("rewe", "B")
-    coordinator.async_set_checked("rewe", a.id, True)
+    coordinator.async_set_checked("rewe", None, "A", True)
     client = await hass_ws_client(hass)
     await client.send_json(
         {
@@ -218,7 +218,7 @@ async def test_clear_checked_command(
     )
     result = await client.receive_json()
     assert result["success"] is True
-    assert result["result"]["cleared"] == [a.id]
+    assert result["result"]["cleared"] == [a.key]
 
 
 async def test_get_units_command(
@@ -238,7 +238,7 @@ async def test_undo_redo_commands(
     hass: HomeAssistant, hass_ws_client, setup_ws
 ):
     entry_id, coordinator = setup_ws
-    item = coordinator.async_add_item("rewe", "Bread")
+    coordinator.async_add_item("rewe", "Bread")
     client = await hass_ws_client(hass)
 
     await client.send_json(
@@ -247,7 +247,7 @@ async def test_undo_redo_commands(
     result = await client.receive_json()
     assert result["success"] is True
     assert result["result"]["undone"] is True
-    assert item.id not in coordinator.state.lists["rewe"].items
+    assert coordinator.state.lists["rewe"].items == []
 
     await client.send_json(
         {"id": 2, "type": "grocery_list/redo", "entry_id": entry_id}

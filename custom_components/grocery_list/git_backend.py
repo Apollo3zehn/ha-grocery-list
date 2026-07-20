@@ -315,6 +315,33 @@ class GitBackend:
             cur = obj
         return None
 
+    def merge_base(
+        self, a_sha: str | None, b_sha: str | None
+    ) -> str | None:
+        """Return the git merge-base (common ancestor) of two commits.
+
+        This is the 3-way merge ancestor used to distinguish structural
+        deletions from never-seen items. If either input is missing, or no
+        common ancestor exists, returns ``None`` (callers then treat the base
+        as empty). If the two commits are the same, that commit is returned.
+        """
+        if not a_sha or not b_sha:
+            return None
+        if a_sha == b_sha:
+            return a_sha
+        from dulwich.graph import find_merge_base
+
+        repo = self.repo
+        try:
+            bases = find_merge_base(
+                repo, [a_sha.encode(), b_sha.encode()]
+            )
+        except KeyError:
+            return None
+        if not bases:
+            return None
+        return bases[0].decode()
+
     def list_files(self, subdir: str) -> list[str]:
         """List file paths (relative to repo root) under a working-tree subdir."""
         base = os.path.join(self._work_dir, subdir)

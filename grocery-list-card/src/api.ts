@@ -50,21 +50,33 @@ export class GroceryApi {
 
   updateItem(
     slug: string,
-    itemId: string,
-    changes: Partial<Pick<Item, "name" | "category">> & {
+    category: string | null,
+    name: string,
+    changes: {
+      new_name?: string;
+      new_category?: string | null;
       qty_value?: number | null;
       qty_unit?: string | null;
     }
   ): Promise<{ item: Item }> {
-    return this.send("update_item", { slug, item_id: itemId, ...changes });
+    return this.send("update_item", { slug, category, name, ...changes });
   }
 
-  setChecked(slug: string, itemId: string, checked: boolean): Promise<{ item: Item }> {
-    return this.send("set_checked", { slug, item_id: itemId, checked });
+  setChecked(
+    slug: string,
+    category: string | null,
+    name: string,
+    checked: boolean
+  ): Promise<{ item: Item }> {
+    return this.send("set_checked", { slug, category, name, checked });
   }
 
-  deleteItem(slug: string, itemId: string): Promise<{ deleted: string }> {
-    return this.send("delete_item", { slug, item_id: itemId });
+  deleteItem(
+    slug: string,
+    category: string | null,
+    name: string
+  ): Promise<{ deleted: { category: string | null; name: string } }> {
+    return this.send("delete_item", { slug, category, name });
   }
 
   clearChecked(slug: string): Promise<{ cleared: number }> {
@@ -73,14 +85,10 @@ export class GroceryApi {
 
   restoreArchived(
     slug: string,
-    itemId: string,
-    archivedTs?: string
+    category: string | null,
+    name: string
   ): Promise<{ item: Item }> {
-    return this.send("restore_archived", {
-      slug,
-      item_id: itemId,
-      archived_ts: archivedTs ?? null,
-    });
+    return this.send("restore_archived", { slug, category, name });
   }
 
   createList(

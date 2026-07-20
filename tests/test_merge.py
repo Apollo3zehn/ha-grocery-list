@@ -1,158 +1,113 @@
-"""Unit tests for the semantic 3-way merge engine (PLAN §3)."""
+"""Unit tests for the semantic 3-way merge engine.
+
+Items are keyed by ``(category, name)``. Deletions are structural: an item in
+``base`` that is absent (and unchanged on the surviving side) is dropped. There
+are no tombstones or timestamps.
+"""
 
 from grocery_list.merge import merge
-from grocery_list.models import Item, ListState, Tombstone
+from grocery_list.models import GroceryList, Item, Quantity
 
 
-def _state(*items: Item, tombstones=None, title="Rewe", slug="rewe") -> ListState:
-    return ListState(
-        slug=slug,
-        title=title,
-        items={it.id: it for it in items},
-        tombstones={t.id: t for t in (tombstones or [])},
-    )
-
-
-def _item(iid, name="X", checked=False, upd="2026-01-01T00:00:00Z", **kw) -> Item:
-    return Item(id=iid, name=name, checked=checked, updated_ts=upd, **kw)
+def _list(*items: Item, title="Rewe", slug="rewe") -> GroceryList:
+    return GroceryList(slug=slug, title=title, items=list(items))
 
 
 def test_disjoint_additions_are_unioned():
-    base = _state()
-    ours = _state(_item("a", "Milk"))
-    theirs = _state(_item("b", "Bread"))
+    base = _list()
+    ours = _list(Item(name="Milk"))
+    theirs = _list(Item(name="Bread"))
     result = merge(base, ours, theirs)
-    assert set(result.items) == {"a", "b"}
+    assert {it.name for it in result.items} == {"Milk", "Bread"}
 
 
-def test_same_item_edit_lww_newer_wins():
-    base = _state(_item("a", "Milk", upd="2026-01-01T00:00:00Z"))
-    ours = _state(_item("a", "Milk 1L", upd="2026-01-02T00:00:00Z"))
-    theirs = _state(_item("a", "Milk 2L", upd="2026-01-03T00:00:00Z"))
+def test_same_item_present_both_sides_merges_once():
+    base = _list()
+    ours = _list(Item(name="Milk"))
+    theirs = _list(Item(name="Milk"))
     result = merge(base, ours, theirs)
-    assert result.items["a"].name == "Milk 2L"  # theirs newer
-    assert result.items["a"].updated_ts == "2026-01-03T00:00:00Z"
+    assert len(result.items) == 1
+    assert result.items[0].name == "Milk"
 
 
-def test_checked_wins_tiebreak():
-    base = _state(_item("a", "Milk"))
-    ours = _state(_item("a", "Milk", checked=False, upd="2026-01-05T00:00:00Z"))
-    theirs = _state(
-        _item(
-            "a", "Milk", checked=True, upd="2026-01-02T00:00:00Z",
-            checked_ts="2026-01-02T00:00:00Z",
-        )
-    )
+def test_checked_wins():
+    base = _list(Item(name="Milk"))
+    ours = _list(Item(name="Milk", checked=False))
+    theirs = _list(Item(name="Milk", checked=True))
     result = merge(base, ours, theirs)
-    # Even though ours is newer and unchecked, checked wins.
-    assert result.items["a"].checked is True
-    assert result.items["a"].checked_ts == "2026-01-02T00:00:00Z"
+    assert result.items[0].checked is True
 
 
-def test_checked_ts_is_earliest():
-    base = _state(_item("a", "Milk"))
-    ours = _state(
-        _item("a", "Milk", checked=True, checked_ts="2026-01-05T00:00:00Z")
-    )
-    theirs = _state(
-        _item("a", "Milk", checked=True, checked_ts="2026-01-03T00:00:00Z")
-    )
+def test_qty_conflict_ours_wins():
+    base = _list(Item(name="Milk"))
+    ours = _list(Item(name="Milk", qty=Quantity(2, "l")))
+    theirs = _list(Item(name="Milk", qty=Quantity(3, "l")))
     result = merge(base, ours, theirs)
-    assert result.items["a"].checked_ts == "2026-01-03T00:00:00Z"
+    assert result.items[0].qty == Quantity(2, "l")
 
 
-def test_deletion_via_tombstone_removes_item():
-    base = _state(_item("a", "Milk"))
-    ours = _state(_item("a", "Milk"))
-    theirs = _state(
-        tombstones=[Tombstone(id="a", deleted_ts="2026-02-01T00:00:00Z")]
-    )
+def test_qty_present_one_side_kept():
+    base = _list(Item(name="Milk"))
+    ours = _list(Item(name="Milk", qty=None))
+    theirs = _list(Item(name="Milk", qty=Quantity(3, "l")))
     result = merge(base, ours, theirs)
-    assert "a" not in result.items
-    assert "a" in result.tombstones
+    assert result.items[0].qty == Quantity(3, "l")
 
 
-def test_delete_vs_newer_edit_resurrects():
-    base = _state(_item("a", "Milk", upd="2026-01-01T00:00:00Z"))
-    # Our edit is newer than their deletion -> edit wins, item resurrected.
-    ours = _state(_item("a", "Milk 2L", upd="2026-03-01T00:00:00Z"))
-    theirs = _state(
-        tombstones=[Tombstone(id="a", deleted_ts="2026-02-01T00:00:00Z")]
-    )
+def test_deletion_honored_when_surviving_unchanged():
+    # In base + ours (unchanged), absent in theirs -> theirs deleted it.
+    base = _list(Item(name="Milk"))
+    ours = _list(Item(name="Milk"))
+    theirs = _list()
     result = merge(base, ours, theirs)
-    assert "a" in result.items
-    assert result.items["a"].name == "Milk 2L"
-    assert "a" not in result.tombstones
+    assert result.items == []
 
 
-def test_delete_newer_than_edit_stays_deleted():
-    base = _state(_item("a", "Milk", upd="2026-01-01T00:00:00Z"))
-    ours = _state(_item("a", "Milk 2L", upd="2026-01-15T00:00:00Z"))
-    theirs = _state(
-        tombstones=[Tombstone(id="a", deleted_ts="2026-02-01T00:00:00Z")]
-    )
+def test_edit_on_surviving_side_beats_deletion():
+    # theirs deleted; ours edited (qty) the same-key item -> keep our edit.
+    base = _list(Item(name="Milk"))
+    ours = _list(Item(name="Milk", qty=Quantity(2, "l")))
+    theirs = _list()
     result = merge(base, ours, theirs)
-    assert "a" not in result.items
-    assert "a" in result.tombstones
+    assert len(result.items) == 1
+    assert result.items[0].qty == Quantity(2, "l")
 
 
-def test_category_change_lww():
-    base = _state(_item("a", "Milk", category=None, upd="2026-01-01T00:00:00Z"))
-    ours = _state(
-        _item("a", "Milk", category="cat-dairy", upd="2026-01-02T00:00:00Z")
-    )
-    theirs = _state(
-        _item("a", "Milk", category="cat-drinks", upd="2026-01-05T00:00:00Z")
-    )
+def test_category_change_is_new_identity():
+    # Changing category changes the key, so it's an addition on that side and a
+    # deletion of the old key; the old (base) key is dropped.
+    base = _list(Item(name="Milk", category=None))
+    ours = _list(Item(name="Milk", category="Dairy"))
+    theirs = _list(Item(name="Milk", category=None))
     result = merge(base, ours, theirs)
-    assert result.items["a"].category == "cat-drinks"
+    keys = {it.key for it in result.items}
+    assert "Dairy|Milk" in keys
+    assert "|Milk" not in keys
 
 
-def test_created_ts_and_added_by_keep_earliest():
-    base = _state()
-    ours = _state(
-        _item(
-            "a", "Milk", added_by="pi", created_ts="2026-01-02T00:00:00Z",
-            upd="2026-01-02T00:00:00Z",
-        )
-    )
-    theirs = _state(
-        _item(
-            "a", "Milk", added_by="anna", created_ts="2026-01-01T00:00:00Z",
-            upd="2026-01-03T00:00:00Z",
-        )
-    )
-    result = merge(base, ours, theirs)
-    # earliest creation wins for created_ts + added_by
-    assert result.items["a"].created_ts == "2026-01-01T00:00:00Z"
-    assert result.items["a"].added_by == "anna"
-
-
-def test_title_change_propagates_from_one_side():
-    base = _state(title="Rewe")
-    ours = _state(title="Rewe")
-    theirs = _state(title="Rewe Wochenende")
+def test_title_change_one_side_propagates():
+    base = _list(title="Rewe")
+    ours = _list(title="Rewe")
+    theirs = _list(title="Rewe Wochenende")
     result = merge(base, ours, theirs)
     assert result.title == "Rewe Wochenende"
 
 
-def test_merge_is_deterministic_and_symmetric_for_additions():
-    base = _state()
-    a = _item("a", "Milk")
-    b = _item("b", "Bread")
-    r1 = merge(base, _state(a), _state(b))
-    r2 = merge(base, _state(b), _state(a))
-    assert set(r1.items) == set(r2.items) == {"a", "b"}
-
-
-def test_newest_tombstone_retained():
-    base = _state(_item("a", "Milk"))
-    ours = _state(
-        tombstones=[Tombstone(id="a", deleted_ts="2026-01-01T00:00:00Z", reason="deleted")]
-    )
-    theirs = _state(
-        tombstones=[Tombstone(id="a", deleted_ts="2026-02-01T00:00:00Z", reason="cleared")]
-    )
+def test_title_tie_prefers_ours():
+    base = _list(title="Base")
+    ours = _list(title="Ours")
+    theirs = _list(title="Theirs")
     result = merge(base, ours, theirs)
-    assert result.tombstones["a"].deleted_ts == "2026-02-01T00:00:00Z"
-    assert result.tombstones["a"].reason == "cleared"
+    assert result.title == "Ours"
+
+
+def test_merge_symmetric_for_additions():
+    base = _list()
+    a = Item(name="Milk")
+    b = Item(name="Bread")
+    r1 = merge(base, _list(a), _list(b))
+    r2 = merge(base, _list(b), _list(a))
+    assert {it.name for it in r1.items} == {it.name for it in r2.items} == {
+        "Milk",
+        "Bread",
+    }
