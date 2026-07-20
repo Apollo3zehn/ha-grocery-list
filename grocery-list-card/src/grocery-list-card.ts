@@ -223,7 +223,7 @@ export class GroceryListCard extends LitElement {
             @click=${() => this._api?.sync()}
           >\u21bb</button>
           <button
-            class="gl-icon-btn"
+            class="gl-icon-btn gl-mono"
             title=${t("view_archive")}
             @click=${() => (this._archiveOpen = true)}
           >\u{1F4E6}</button>

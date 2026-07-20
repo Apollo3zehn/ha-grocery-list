@@ -19,6 +19,7 @@ happens once even with multiple entries.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from pathlib import Path
 
@@ -41,16 +42,21 @@ _LOGGER = logging.getLogger(__name__)
 _REGISTERED_KEY = f"{DOMAIN}_frontend_registered"
 
 
-def _card_version(hass: HomeAssistant) -> str:
-    """Best-effort integration version for cache-busting the card URL."""
+def _card_cache_tag(card_file: Path) -> str:
+    """Content-based cache-busting tag for the card URL.
+
+    We hash the built JS bytes rather than using the integration version so the
+    URL changes on *every* rebuild of the card, even within the same release.
+    This matters because HA's frontend service worker (PWA cache) will otherwise
+    keep serving a previously cached module for an unchanged URL -- the classic
+    "works after a hard reload, breaks on the next normal reload" symptom. A
+    short hex digest is plenty to distinguish builds and keeps the URL tidy.
+    """
     try:
-        integration = hass.data["integrations"][DOMAIN]  # type: ignore[index]
-        version = getattr(integration, "version", None)
-        if version:
-            return str(version)
-    except (KeyError, AttributeError):
-        pass
-    return "0"
+        digest = hashlib.sha256(card_file.read_bytes()).hexdigest()
+        return digest[:12]
+    except OSError:
+        return "0"
 
 
 async def async_register_card(hass: HomeAssistant) -> None:
@@ -74,8 +80,9 @@ async def async_register_card(hass: HomeAssistant) -> None:
         [StaticPathConfig(FRONTEND_URL_BASE, str(frontend_dir), True)]
     )
 
-    # Cache-bust on upgrade so browsers pick up a new build.
-    url = f"{FRONTEND_CARD_URL}?v={_card_version(hass)}"
+    # Cache-bust on every rebuild (content hash) so browsers and HA's service
+    # worker pick up a new build instead of serving a stale cached module.
+    url = f"{FRONTEND_CARD_URL}?v={_card_cache_tag(card_file)}"
     add_extra_js_url(hass, url)
 
     hass.data[_REGISTERED_KEY] = True

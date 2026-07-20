@@ -68,6 +68,7 @@ function t(t,e,i,s){var n,r=arguments.length,o=r<3?e:null===s?s=Object.getOwnPro
     align-items: center;
     justify-content: center;
   }
+  .gl-mono { filter: grayscale(1); }
   .gl-icon-btn:hover { background: rgba(127,127,127,0.12); }
   .gl-icon-btn:disabled { opacity: 0.35; cursor: default; }
   .gl-icon-btn:disabled:hover { background: transparent; }
@@ -430,7 +431,7 @@ function t(t,e,i,s){var n,r=arguments.length,o=r<3?e:null===s?s=Object.getOwnPro
             @click=${()=>this._api?.sync()}
           >\u21bb</button>
           <button
-            class="gl-icon-btn"
+            class="gl-icon-btn gl-mono"
             title=${t("view_archive")}
             @click=${()=>this._archiveOpen=!0}
           >\u{1F4E6}</button>

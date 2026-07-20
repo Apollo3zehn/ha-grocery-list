@@ -934,6 +934,17 @@ class GroceryCoordinator:
             else:
                 state.items[op.target_id] = Item.from_dict(snapshot)
                 state.tombstones.pop(op.target_id, None)
+                # If this item was previously archived (e.g. via clear-checked),
+                # restoring it must also drop the matching archive entry so the
+                # archive view stays in sync after an undo.
+                archive = self.state.archives.get(op.scope)
+                if archive:
+                    kept = [a for a in archive if a.item.id != op.target_id]
+                    if len(kept) != len(archive):
+                        if kept:
+                            self.state.archives[op.scope] = kept
+                        else:
+                            self.state.archives.pop(op.scope, None)
             return
 
         if op.entity == ENTITY_LIST:

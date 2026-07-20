@@ -119,6 +119,21 @@ async def test_clear_checked_archives_all_checked(coordinator: GroceryCoordinato
     assert all(e.reason == "cleared" for e in archive)
 
 
+async def test_undo_clear_checked_removes_archive_entry(
+    coordinator: GroceryCoordinator,
+):
+    """Undoing a cleared item restores it AND drops its archive entry."""
+    a = coordinator.async_add_item("rewe", "Milk")
+    coordinator.async_set_checked("rewe", a.id, True)
+    coordinator.async_clear_checked("rewe")
+    assert coordinator.state.archives["rewe"]
+    assert a.id not in coordinator.state.lists["rewe"].items
+    # Undo the clear: item comes back and the archive no longer lists it.
+    assert coordinator.async_undo() is True
+    assert a.id in coordinator.state.lists["rewe"].items
+    assert "rewe" not in coordinator.state.archives
+
+
 async def test_category_crud(coordinator: GroceryCoordinator):
     cat = coordinator.async_create_category("Vegetables")
     assert cat.id in coordinator.state.categories.categories
