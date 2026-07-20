@@ -380,7 +380,7 @@ def ws_delete_list(
     {
         vol.Required("type"): WS_CREATE_CATEGORY,
         vol.Required("entry_id"): str,
-        vol.Required("labels"): {str: str},
+        vol.Required("name"): str,
         vol.Optional("icon"): vol.Any(str, None),
     }
 )
@@ -394,7 +394,7 @@ def ws_create_category(
     if coordinator is None:
         return
     cat = coordinator.async_create_category(
-        dict(msg["labels"]), icon=msg.get("icon")
+        msg["name"], icon=msg.get("icon")
     )
     connection.send_result(msg["id"], {"category": cat.to_dict()})
 
@@ -404,7 +404,7 @@ def ws_create_category(
         vol.Required("type"): WS_UPDATE_CATEGORY,
         vol.Required("entry_id"): str,
         vol.Required("cat_id"): str,
-        vol.Optional("labels"): {str: str},
+        vol.Optional("name"): str,
         vol.Optional("icon"): vol.Any(str, None),
         vol.Optional("order"): int,
     }
@@ -420,7 +420,7 @@ def ws_update_category(
         return
     cat = coordinator.async_update_category(
         msg["cat_id"],
-        labels=dict(msg["labels"]) if "labels" in msg else None,
+        name=msg["name"] if "name" in msg else None,
         icon=msg.get("icon") if "icon" in msg else None,
         order=msg.get("order") if "order" in msg else None,
     )

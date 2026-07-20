@@ -331,12 +331,17 @@ export const cardStyles = css`
     background: var(--gl-card-bg);
     color: var(--gl-text);
   }
-  .gl-catrow .gl-lang-tag {
-    font-size: 0.7rem;
+  .gl-settings-section {
+    margin-bottom: 18px;
+  }
+  .gl-settings-section:last-child { margin-bottom: 0; }
+  .gl-section-title {
+    font-size: 0.8rem;
     font-weight: 700;
-    color: var(--gl-muted);
-    width: 20px;
     text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gl-muted);
+    margin: 4px 0 8px;
   }
   .gl-cat-new {
     display: flex;

@@ -12,8 +12,8 @@ def test_starts_empty():
 
 def test_create_assigns_id_and_order():
     cs = CategorySet()
-    a = cs.create({"en": "Vegetables", "de": "Gem\u00fcse"})
-    b = cs.create({"en": "Dairy"})
+    a = cs.create("Vegetables")
+    b = cs.create("Dairy")
     assert a.id.startswith("cat-")
     assert a.order == 0
     assert b.order == 1
@@ -22,17 +22,17 @@ def test_create_assigns_id_and_order():
 
 def test_update_changes_fields_and_touches_ts():
     cs = CategorySet()
-    a = cs.create({"en": "Veg"})
+    a = cs.create("Veg")
     old_ts = a.updated_ts
-    a2 = cs.update(a.id, labels={"en": "Vegetables"}, icon="mdi:carrot")
-    assert a2.labels["en"] == "Vegetables"
+    a2 = cs.update(a.id, name="Vegetables", icon="mdi:carrot")
+    assert a2.name == "Vegetables"
     assert a2.icon == "mdi:carrot"
     assert a2.updated_ts >= old_ts
 
 
 def test_delete_leaves_tombstone():
     cs = CategorySet()
-    a = cs.create({"en": "Veg"})
+    a = cs.create("Veg")
     tomb = cs.delete(a.id)
     assert tomb is not None
     assert a.id not in cs.categories
@@ -41,28 +41,28 @@ def test_delete_leaves_tombstone():
 
 def test_reorder():
     cs = CategorySet()
-    a = cs.create({"en": "A"})
-    b = cs.create({"en": "B"})
-    c = cs.create({"en": "C"})
+    a = cs.create("A")
+    b = cs.create("B")
+    c = cs.create("C")
     cs.reorder([c.id, a.id, b.id])
     assert cs.order_ids() == [c.id, a.id, b.id]
 
 
-def test_labels_map_locale_fallback():
+def test_names_map():
     cs = CategorySet()
-    a = cs.create({"en": "Vegetables"})  # no de
-    labels = cs.labels_map("de")
-    assert labels[a.id] == "Vegetables"  # falls back to en
+    a = cs.create("Vegetables")
+    names = cs.names_map()
+    assert names[a.id] == "Vegetables"
 
 
 def test_json_roundtrip():
     cs = CategorySet()
-    cs.create({"en": "Vegetables", "de": "Gem\u00fcse"}, icon="mdi:carrot")
-    cs.create({"en": "Dairy"})
+    cs.create("Vegetables", icon="mdi:carrot")
+    cs.create("Dairy")
     text = cs.to_json()
     restored = CategorySet.from_json(text)
     assert restored.order_ids() == cs.order_ids()
-    assert restored.labels_map("en") == cs.labels_map("en")
+    assert restored.names_map() == cs.names_map()
 
 
 def test_from_json_empty():
@@ -73,39 +73,39 @@ def test_from_json_empty():
 def test_merge_union_of_new_categories():
     base = CategorySet()
     ours = CategorySet()
-    a = ours.create({"en": "Veg"})
+    a = ours.create("Veg")
     theirs = CategorySet()
-    b = theirs.create({"en": "Dairy"})
+    b = theirs.create("Dairy")
     merged = merge_category_sets(base, ours, theirs)
     assert set(merged.categories) == {a.id, b.id}
 
 
 def test_merge_lww_on_conflicting_edit():
-    shared = Category(id="cat-x", order=0, labels={"en": "Old"}, updated_ts="2026-01-01T00:00:00Z")
+    shared = Category(id="cat-x", order=0, name="Old", updated_ts="2026-01-01T00:00:00Z")
     base = CategorySet(categories={"cat-x": shared})
     ours = CategorySet(
         categories={
-            "cat-x": Category(id="cat-x", order=0, labels={"en": "Ours"}, updated_ts="2026-01-02T00:00:00Z")
+            "cat-x": Category(id="cat-x", order=0, name="Ours", updated_ts="2026-01-02T00:00:00Z")
         }
     )
     theirs = CategorySet(
         categories={
-            "cat-x": Category(id="cat-x", order=0, labels={"en": "Theirs"}, updated_ts="2026-01-03T00:00:00Z")
+            "cat-x": Category(id="cat-x", order=0, name="Theirs", updated_ts="2026-01-03T00:00:00Z")
         }
     )
     merged = merge_category_sets(base, ours, theirs)
-    assert merged.categories["cat-x"].labels["en"] == "Theirs"
+    assert merged.categories["cat-x"].name == "Theirs"
 
 
 def test_merge_delete_wins_when_newer():
     base = CategorySet(
         categories={
-            "cat-x": Category(id="cat-x", labels={"en": "X"}, updated_ts="2026-01-01T00:00:00Z")
+            "cat-x": Category(id="cat-x", name="X", updated_ts="2026-01-01T00:00:00Z")
         }
     )
     ours = CategorySet(
         categories={
-            "cat-x": Category(id="cat-x", labels={"en": "X"}, updated_ts="2026-01-01T00:00:00Z")
+            "cat-x": Category(id="cat-x", name="X", updated_ts="2026-01-01T00:00:00Z")
         }
     )
     theirs = CategorySet(
@@ -119,12 +119,12 @@ def test_merge_delete_wins_when_newer():
 def test_merge_edit_resurrects_over_older_delete():
     base = CategorySet(
         categories={
-            "cat-x": Category(id="cat-x", labels={"en": "X"}, updated_ts="2026-01-01T00:00:00Z")
+            "cat-x": Category(id="cat-x", name="X", updated_ts="2026-01-01T00:00:00Z")
         }
     )
     ours = CategorySet(
         categories={
-            "cat-x": Category(id="cat-x", labels={"en": "X2"}, updated_ts="2026-03-01T00:00:00Z")
+            "cat-x": Category(id="cat-x", name="X2", updated_ts="2026-03-01T00:00:00Z")
         }
     )
     theirs = CategorySet(
@@ -132,4 +132,4 @@ def test_merge_edit_resurrects_over_older_delete():
     )
     merged = merge_category_sets(base, ours, theirs)
     assert "cat-x" in merged.categories
-    assert merged.categories["cat-x"].labels["en"] == "X2"
+    assert merged.categories["cat-x"].name == "X2"

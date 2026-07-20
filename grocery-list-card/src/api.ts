@@ -90,15 +90,15 @@ export class GroceryApi {
   }
 
   createCategory(
-    labels: Record<string, string>,
+    name: string,
     icon?: string | null
   ): Promise<{ category: unknown }> {
-    return this.send("create_category", { labels, icon });
+    return this.send("create_category", { name, icon });
   }
 
   updateCategory(
     catId: string,
-    changes: { labels?: Record<string, string>; icon?: string | null; order?: number }
+    changes: { name?: string; icon?: string | null; order?: number }
   ): Promise<{ category: unknown }> {
     return this.send("update_category", { cat_id: catId, ...changes });
   }

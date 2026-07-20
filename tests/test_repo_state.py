@@ -21,7 +21,7 @@ def _item(iid, name, cat=None, checked=False, ts="2026-01-01T00:00:00Z"):
 
 def test_roundtrip_files_lists_categories_oplog():
     cats = CategorySet()
-    veg = cats.create({"en": "Vegetables", "de": "Gem\u00fcse"})
+    veg = cats.create("Vegetables")
     state = ListState(slug="rewe", title="Rewe")
     state.items = {
         "i1": _item("i1", "Tomatoes", cat=veg.id),

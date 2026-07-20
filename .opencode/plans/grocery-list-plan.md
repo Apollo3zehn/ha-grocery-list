@@ -41,8 +41,8 @@ mobile-first, native-feeling UI**. English + German throughout.
 1. Checked items sink to **bottom of their category** (not whole list).
 2. Categories: **user-managed via a central UI**, **empty at first** (no
    developer-shipped set). Users create/edit/reorder/delete categories in the app;
-   category definitions are synced in the repo. en + de labels supported per
-   category (user-provided). See §4.4.
+   category definitions are synced in the repo. Each category has a single
+   free-text name (language-independent, user-provided). See §4.4.
 3. UI: **developer to recommend** — user is a power user who wants a **slick,
    mobile, native-app-like** experience (adds it to phone splashscreen).
 4. **Bundle dulwich** for git — but the architecture must **not become a dead
@@ -182,12 +182,12 @@ them, e.g. `.grocery/categories.json` (or `categories.md` for host-readability):
 Category {
   id: string            # stable id, generated on creation (e.g. cat-veg)
   order: number         # user-defined ordering (drives display + store flow)
-  labels: { en: string, de: string }   # user-provided; en fallback if de empty
+  name: string          # user-provided free-text name (language-independent)
   icon: string | null   # optional (mdi icon name)
   updated_ts: ISO-8601 UTC              # for merge (LWW)
 }
 ```
-- Managed operations: **create, rename (per-locale labels), reorder, set icon,
+- Managed operations: **create, rename (name), reorder, set icon,
   delete**. All are ops in the shared op-log (§6) and merge semantically.
 - **Deleting a category** does not delete its items; affected items become
   **uncategorized** (category set to null) via tombstone-aware merge.
@@ -289,7 +289,7 @@ In multi-device editing, "undo" is ambiguous when actions interleave:
 - **Views:**
   - main grouped list per list; list switcher;
   - **Category management UI** (central place to create/rename/reorder/delete
-    categories, set icons, provide en/de labels) — starts empty;
+    categories, set icons, provide a name) — starts empty;
   - **Archive subview**;
   - undo/redo controls; **clear-checked** action.
 
@@ -339,7 +339,7 @@ README.md
    sync-state machine, `last_synced_commit` tracking.
 7. **Op-log + undo/redo** — `oplog.py`: shared synced log, per-identity
    undo/redo emitting inverse commits.
-8. **Categories** — `categories.py`: user CRUD, ordering, en/de labels, icons,
+8. **Categories** — `categories.py`: user CRUD, ordering, single name, icons,
    synced + merge-safe; empty initial state.
 9. **WebSocket API + services** — expose lists, items, categories, actions, sync
    state to the card.

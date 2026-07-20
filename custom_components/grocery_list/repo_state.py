@@ -156,21 +156,17 @@ class RepoState:
 
     # -- serialization ------------------------------------------------------
 
-    def to_files(
-        self,
-        *,
-        category_labels_locale: str = "en",
-    ) -> dict[str, bytes]:
+    def to_files(self) -> dict[str, bytes]:
         """Serialize to a ``path -> bytes`` mapping for the git backend.
 
-        List markdown is rendered using the current category order/labels so the
+        List markdown is rendered using the current category order/names so the
         file on the host is grouped and readable. Tombstones are written to
         their JSON sidecars. Categories and the op-log are written whole.
         """
         out: dict[str, bytes] = {}
 
         order = self.categories.order_ids()
-        labels = self.categories.labels_map(category_labels_locale)
+        labels = self.categories.names_map()
 
         for slug, state in self.lists.items():
             # A tombstoned (deleted) list is not written back to disk.

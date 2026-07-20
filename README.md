@@ -16,8 +16,8 @@ merge is ours.**
 - **Checked items sink** to the bottom of their category.
 - **Structured quantities** (value + unit; units are maintained by the
   integration in `units.yaml`).
-- **User-managed categories** with per-category English/German labels, created
-  and reordered from the card (they start empty — no presets are shipped).
+- **User-managed categories** with a single free-text name, created and
+  reordered from the card (they start empty — no presets are shipped).
 - **Per-identity shared undo/redo** backed by an append-only, synced op-log;
   undo/redo emit new commits and never rewrite history.
 - **Archiving**: "clear checked" moves items to a browsable archive with

@@ -22,7 +22,7 @@ export interface Item {
 export interface Category {
   id: string;
   order: number;
-  labels: Record<string, string>;
+  name: string;
   icon: string | null;
   updated_ts: string;
 }

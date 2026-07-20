@@ -38,7 +38,7 @@ class CategorySet:
 
     def create(
         self,
-        labels: dict[str, str],
+        name: str,
         *,
         icon: str | None = None,
         order: int | None = None,
@@ -52,7 +52,7 @@ class CategorySet:
         cat = Category(
             id=new_id("cat-"),
             order=order,
-            labels=dict(labels),
+            name=name,
             icon=icon,
             updated_ts=utcnow_iso(),
         )
@@ -64,7 +64,7 @@ class CategorySet:
         self,
         cat_id: str,
         *,
-        labels: dict[str, str] | None = None,
+        name: str | None = None,
         icon: str | None = None,
         order: int | None = None,
     ) -> Category | None:
@@ -72,8 +72,8 @@ class CategorySet:
         cat = self.categories.get(cat_id)
         if cat is None:
             return None
-        if labels is not None:
-            cat.labels = dict(labels)
+        if name is not None:
+            cat.name = name
         if icon is not None:
             cat.icon = icon
         if order is not None:
@@ -110,8 +110,8 @@ class CategorySet:
     def order_ids(self) -> list[str]:
         return [c.id for c in self.ordered()]
 
-    def labels_map(self, locale: str) -> dict[str, str]:
-        return {c.id: c.label(locale) for c in self.categories.values()}
+    def names_map(self) -> dict[str, str]:
+        return {c.id: c.display() for c in self.categories.values()}
 
     def _next_order(self) -> int:
         if not self.categories:

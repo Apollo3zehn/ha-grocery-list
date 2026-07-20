@@ -41,14 +41,12 @@ export class GroceryListCard extends LitElement {
   @state() private _draftUnit = "";
   @state() private _draftCategory: string | null = null;
 
-  // Category manager sheet state.
-  @state() private _catManagerOpen = false;
+  // Settings sheet state (combined lists + categories manager).
+  @state() private _settingsOpen = false;
   @state() private _archiveOpen = false;
-  @state() private _newCatEn = "";
-  @state() private _newCatDe = "";
+  @state() private _newCatName = "";
 
-  // List manager sheet state.
-  @state() private _listManagerOpen = false;
+  // New-list draft (within the settings sheet).
   @state() private _newListName = "";
 
   private _api?: GroceryApi;
@@ -192,9 +190,8 @@ export class GroceryListCard extends LitElement {
         ${list ? this._renderGroups(list, t) : nothing}
         ${this._renderFooter(t)}
       </ha-card>
-      ${this._catManagerOpen ? this._renderCategoryManager(t) : nothing}
+      ${this._settingsOpen ? this._renderSettings(t) : nothing}
       ${this._archiveOpen ? this._renderArchive(t) : nothing}
-      ${this._listManagerOpen ? this._renderListManager(t) : nothing}
     `;
   }
 
@@ -227,18 +224,13 @@ export class GroceryListCard extends LitElement {
           >\u21bb</button>
           <button
             class="gl-icon-btn"
-            title=${t("manage_lists")}
-            @click=${() => (this._listManagerOpen = true)}
-          >\u{1F4CB}</button>
-          <button
-            class="gl-icon-btn"
             title=${t("view_archive")}
             @click=${() => (this._archiveOpen = true)}
-          >\u{1F5C4}</button>
+          >\u{1F4E6}</button>
           <button
             class="gl-icon-btn"
-            title=${t("manage_categories")}
-            @click=${() => (this._catManagerOpen = true)}
+            title=${t("settings")}
+            @click=${() => (this._settingsOpen = true)}
           >\u2699</button>
         </div>
       </div>
@@ -570,44 +562,70 @@ export class GroceryListCard extends LitElement {
     });
   }
 
-  private _renderListManager(t: (k: string) => string): TemplateResult {
+  private _renderSettings(t: (k: string) => string): TemplateResult {
     const lists = this._snapshot?.lists ?? [];
+    const cats = this._categories();
     return html`
       <div
         class="gl-overlay"
         @click=${(e: Event) => {
-          if (e.target === e.currentTarget) this._closeListManager();
+          if (e.target === e.currentTarget) this._closeSettings();
         }}
       >
         <div class="gl-sheet">
           <div class="gl-sheet-header">
-            <h3>${t("lists")}</h3>
+            <h3>${t("settings")}</h3>
             <button
               class="gl-icon-btn"
               title=${t("close")}
-              @click=${() => this._closeListManager()}
+              @click=${() => this._closeSettings()}
             >\u2715</button>
           </div>
 
-          ${lists.length
-            ? html`<ul class="gl-catlist">
-                ${lists.map((l) => this._renderListRow(l, lists.length, t))}
-              </ul>`
-            : html`<div class="gl-empty">${t("no_lists")}</div>`}
+          <div class="gl-settings-section">
+            <div class="gl-section-title">${t("lists")}</div>
+            ${lists.length
+              ? html`<ul class="gl-catlist">
+                  ${lists.map((l) => this._renderListRow(l, lists.length, t))}
+                </ul>`
+              : html`<div class="gl-empty">${t("no_lists")}</div>`}
+            <div class="gl-cat-new">
+              <input
+                .value=${this._newListName}
+                placeholder=${t("list_name")}
+                @input=${(e: Event) =>
+                  (this._newListName = (e.target as HTMLInputElement).value)}
+                @keydown=${(e: KeyboardEvent) => {
+                  if (e.key === "Enter") this._commitNewList();
+                }}
+              />
+              <button class="gl-add-btn" @click=${() => this._commitNewList()}>
+                ${t("add_list")}
+              </button>
+            </div>
+          </div>
 
-          <div class="gl-cat-new">
-            <input
-              .value=${this._newListName}
-              placeholder=${t("list_name")}
-              @input=${(e: Event) =>
-                (this._newListName = (e.target as HTMLInputElement).value)}
-              @keydown=${(e: KeyboardEvent) => {
-                if (e.key === "Enter") this._commitNewList();
-              }}
-            />
-            <button class="gl-add-btn" @click=${() => this._commitNewList()}>
-              ${t("add_list")}
-            </button>
+          <div class="gl-settings-section">
+            <div class="gl-section-title">${t("categories")}</div>
+            ${cats.length
+              ? html`<ul class="gl-catlist">
+                  ${cats.map((c, i) => this._renderCatRow(c, i, cats.length, t))}
+                </ul>`
+              : html`<div class="gl-empty">${t("no_categories")}</div>`}
+            <div class="gl-cat-new">
+              <input
+                .value=${this._newCatName}
+                placeholder=${t("category_name")}
+                @input=${(e: Event) =>
+                  (this._newCatName = (e.target as HTMLInputElement).value)}
+                @keydown=${(e: KeyboardEvent) => {
+                  if (e.key === "Enter") this._commitNewCategory();
+                }}
+              />
+              <button class="gl-add-btn" @click=${() => this._commitNewCategory()}>
+                ${t("add_category")}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -637,53 +655,6 @@ export class GroceryListCard extends LitElement {
     `;
   }
 
-  private _renderCategoryManager(t: (k: string) => string): TemplateResult {
-    const cats = this._categories();
-    return html`
-      <div
-        class="gl-overlay"
-        @click=${(e: Event) => {
-          if (e.target === e.currentTarget) this._closeCatManager();
-        }}
-      >
-        <div class="gl-sheet">
-          <div class="gl-sheet-header">
-            <h3>${t("categories")}</h3>
-            <button
-              class="gl-icon-btn"
-              title=${t("close")}
-              @click=${() => this._closeCatManager()}
-            >\u2715</button>
-          </div>
-
-          ${cats.length
-            ? html`<ul class="gl-catlist">
-                ${cats.map((c, i) => this._renderCatRow(c, i, cats.length, t))}
-              </ul>`
-            : html`<div class="gl-empty">${t("no_categories")}</div>`}
-
-          <div class="gl-cat-new">
-            <input
-              .value=${this._newCatEn}
-              placeholder=${t("category_name_en")}
-              @input=${(e: Event) =>
-                (this._newCatEn = (e.target as HTMLInputElement).value)}
-            />
-            <input
-              .value=${this._newCatDe}
-              placeholder=${t("category_name_de")}
-              @input=${(e: Event) =>
-                (this._newCatDe = (e.target as HTMLInputElement).value)}
-            />
-            <button class="gl-add-btn" @click=${() => this._commitNewCategory()}>
-              ${t("add_category")}
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
   private _renderCatRow(
     c: Category,
     index: number,
@@ -692,19 +663,11 @@ export class GroceryListCard extends LitElement {
   ): TemplateResult {
     return html`
       <li class="gl-catrow">
-        <span class="gl-lang-tag">EN</span>
         <input
           class="gl-cat-label"
-          .value=${c.labels.en ?? ""}
+          .value=${c.name ?? ""}
           @change=${(e: Event) =>
-            this._renameCategory(c, "en", (e.target as HTMLInputElement).value)}
-        />
-        <span class="gl-lang-tag">DE</span>
-        <input
-          class="gl-cat-label"
-          .value=${c.labels.de ?? ""}
-          @change=${(e: Event) =>
-            this._renameCategory(c, "de", (e.target as HTMLInputElement).value)}
+            this._renameCategory(c, (e.target as HTMLInputElement).value)}
         />
         <button
           class="gl-icon-btn"
@@ -734,7 +697,7 @@ export class GroceryListCard extends LitElement {
   }
 
   private _catLabel(c: Category): string {
-    return c.labels[this._lang] ?? c.labels.en ?? c.id;
+    return c.name || c.id;
   }
 
   private _unitLabel(id: string): string {
@@ -817,35 +780,17 @@ export class GroceryListCard extends LitElement {
 
   // ----- Category manager handlers --------------------------------------
 
-  private _closeCatManager(): void {
-    this._catManagerOpen = false;
-    this._newCatEn = "";
-    this._newCatDe = "";
-  }
-
   private _commitNewCategory(): void {
-    const en = this._newCatEn.trim();
-    const de = this._newCatDe.trim();
-    if (!en && !de) return;
-    const labels: Record<string, string> = {};
-    if (en) labels.en = en;
-    if (de) labels.de = de;
-    // Ensure at least an English label so the en-fallback always resolves.
-    if (!labels.en) labels.en = de;
-    void this._api?.createCategory(labels);
-    this._newCatEn = "";
-    this._newCatDe = "";
+    const name = this._newCatName.trim();
+    if (!name) return;
+    void this._api?.createCategory(name);
+    this._newCatName = "";
   }
 
-  private _renameCategory(c: Category, lang: string, value: string): void {
+  private _renameCategory(c: Category, value: string): void {
     const next = value.trim();
-    if (next === (c.labels[lang] ?? "")) return;
-    const labels = { ...c.labels };
-    if (next) labels[lang] = next;
-    else delete labels[lang];
-    // Never allow the English label to disappear (it is the fallback).
-    if (!labels.en) labels.en = next || labels.de || c.id;
-    void this._api?.updateCategory(c.id, { labels });
+    if (!next || next === (c.name ?? "")) return;
+    void this._api?.updateCategory(c.id, { name: next });
   }
 
   private _moveCategory(index: number, delta: number): void {
@@ -861,11 +806,12 @@ export class GroceryListCard extends LitElement {
     void this._api?.deleteCategory(c.id);
   }
 
-  // ----- List manager handlers ------------------------------------------
+  // ----- Settings / list handlers ---------------------------------------
 
-  private _closeListManager(): void {
-    this._listManagerOpen = false;
+  private _closeSettings(): void {
+    this._settingsOpen = false;
     this._newListName = "";
+    this._newCatName = "";
   }
 
   private async _commitNewList(): Promise<void> {
@@ -998,12 +944,29 @@ export class GroceryListCardEditor extends LitElement {
   }
 }
 
-// Register the card in HA's picker.
+// Register the card in HA's picker. The picker runs before `hass` is available,
+// so localize the name/description from the browser language (native first,
+// English fallback).
+const PICKER_I18N: Record<string, { name: string; description: string }> = {
+  en: {
+    name: "Grocery List Card",
+    description: "A slick, mobile-first grocery list with categories and sync.",
+  },
+  de: {
+    name: "Einkaufslisten-Karte",
+    description:
+      "Eine schicke, mobil-optimierte Einkaufsliste mit Kategorien und Sync.",
+  },
+};
+const pickerLang = resolveLang(
+  typeof navigator !== "undefined" ? navigator.language : undefined
+);
+const pickerText = PICKER_I18N[pickerLang] ?? PICKER_I18N.en;
 (window as any).customCards = (window as any).customCards || [];
 (window as any).customCards.push({
   type: "grocery-list-card",
-  name: "Grocery List Card",
-  description: "A slick, mobile-first grocery list with categories and sync.",
+  name: pickerText.name,
+  description: pickerText.description,
   preview: true,
   documentationURL:
     "https://codeberg.org/Apollo3zehn/ha-grocery-list",

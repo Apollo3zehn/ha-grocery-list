@@ -135,29 +135,25 @@ class Category:
     """A user-managed category (PLAN §4.4).
 
     There are no developer-shipped categories; the set starts empty and is
-    managed entirely through the app UI, synced via the repo. ``labels`` holds
-    per-locale display names (``en`` is the fallback when ``de`` is empty).
+    managed entirely through the app UI, synced via the repo. Categories are
+    language-independent: ``name`` is a single free-text display name.
     """
 
     id: str
     order: int = 0
-    labels: dict[str, str] = field(default_factory=dict)
+    name: str = ""
     icon: str | None = None
     updated_ts: str = field(default_factory=utcnow_iso)
 
-    def label(self, locale: str) -> str:
-        """Return the best label for a locale, falling back to en then id."""
-        return (
-            self.labels.get(locale)
-            or self.labels.get("en")
-            or self.id
-        )
+    def display(self) -> str:
+        """Return the display name, falling back to the id when empty."""
+        return self.name or self.id
 
     def to_dict(self) -> dict:
         return {
             "id": self.id,
             "order": self.order,
-            "labels": dict(self.labels),
+            "name": self.name,
             "icon": self.icon,
             "updated_ts": self.updated_ts,
         }
@@ -167,7 +163,7 @@ class Category:
         return cls(
             id=str(data["id"]),
             order=int(data.get("order", 0)),
-            labels=dict(data.get("labels") or {}),
+            name=str(data.get("name") or ""),
             icon=data.get("icon"),
             updated_ts=str(data.get("updated_ts") or utcnow_iso()),
         )

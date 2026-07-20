@@ -810,12 +810,12 @@ class GroceryCoordinator:
     @callback
     def async_create_category(
         self,
-        labels: dict[str, str],
+        name: str,
         *,
         icon: str | None = None,
     ):
         """Create a user-managed category and record an undoable op."""
-        cat = self.state.categories.create(labels, icon=icon)
+        cat = self.state.categories.create(name, icon=icon)
         self._record_and_schedule(
             make_action_op(
                 identity=self.identity,
@@ -834,15 +834,15 @@ class GroceryCoordinator:
         self,
         cat_id: str,
         *,
-        labels: dict[str, str] | None = None,
+        name: str | None = None,
         icon: str | None = None,
         order: int | None = None,
     ):
-        """Update a category (labels/icon/order) and record an undoable op."""
+        """Update a category (name/icon/order) and record an undoable op."""
         existing = self.state.categories.categories.get(cat_id)
         before = existing.to_dict() if existing else None
         cat = self.state.categories.update(
-            cat_id, labels=labels, icon=icon, order=order
+            cat_id, name=name, icon=icon, order=order
         )
         if cat is None:
             return None
@@ -1027,7 +1027,7 @@ class GroceryCoordinator:
             "categories": [
                 c.to_dict() for c in self.state.categories.ordered()
             ],
-            "category_labels": self.state.categories.labels_map(locale),
+            "category_labels": self.state.categories.names_map(),
             "archives": {
                 slug: [a.to_dict() for a in entries]
                 for slug, entries in sorted(self.state.archives.items())

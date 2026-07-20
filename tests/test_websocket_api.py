@@ -233,7 +233,7 @@ async def test_category_lifecycle_commands(
             "id": 1,
             "type": "grocery_list/create_category",
             "entry_id": entry_id,
-            "labels": {"en": "Vegetables", "de": "Gem\u00fcse"},
+            "name": "Vegetables",
             "icon": "mdi:carrot",
         }
     )
@@ -273,8 +273,8 @@ async def test_reorder_categories_command(
     hass: HomeAssistant, hass_ws_client, setup_ws
 ):
     entry_id, coordinator = setup_ws
-    c1 = coordinator.async_create_category({"en": "A"})
-    c2 = coordinator.async_create_category({"en": "B"})
+    c1 = coordinator.async_create_category("A")
+    c2 = coordinator.async_create_category("B")
     client = await hass_ws_client(hass)
     await client.send_json(
         {

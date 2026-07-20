@@ -53,21 +53,19 @@ def test_item_copy():
     assert checked.id == item.id
 
 
-def test_category_label_fallback():
-    cat = Category(id="cat-veg", labels={"en": "Vegetables"})
-    assert cat.label("en") == "Vegetables"
-    # de missing -> falls back to en
-    assert cat.label("de") == "Vegetables"
-    # both missing -> falls back to id
+def test_category_display_fallback():
+    cat = Category(id="cat-veg", name="Vegetables")
+    assert cat.display() == "Vegetables"
+    # name missing -> falls back to id
     empty = Category(id="cat-x")
-    assert empty.label("de") == "cat-x"
+    assert empty.display() == "cat-x"
 
 
 def test_category_roundtrip():
     cat = Category(
         id="cat-veg",
         order=1,
-        labels={"en": "Vegetables", "de": "Gem\u00fcse"},
+        name="Vegetables",
         icon="mdi:carrot",
     )
     assert Category.from_dict(cat.to_dict()) == cat

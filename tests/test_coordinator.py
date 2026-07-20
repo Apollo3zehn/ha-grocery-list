@@ -120,7 +120,7 @@ async def test_clear_checked_archives_all_checked(coordinator: GroceryCoordinato
 
 
 async def test_category_crud(coordinator: GroceryCoordinator):
-    cat = coordinator.async_create_category({"en": "Vegetables"})
+    cat = coordinator.async_create_category("Vegetables")
     assert cat.id in coordinator.state.categories.categories
     updated = coordinator.async_update_category(cat.id, icon="mdi:carrot")
     assert updated.icon == "mdi:carrot"
@@ -129,7 +129,7 @@ async def test_category_crud(coordinator: GroceryCoordinator):
 
 
 async def test_delete_category_uncategorizes_items(coordinator: GroceryCoordinator):
-    cat = coordinator.async_create_category({"en": "Veg"})
+    cat = coordinator.async_create_category("Veg")
     item = coordinator.async_add_item("rewe", "Tomatoes", category=cat.id)
     coordinator.async_delete_category(cat.id)
     assert coordinator.state.lists["rewe"].items[item.id].category is None
