@@ -40,6 +40,11 @@ const EN: Dict = {
   view_archive: "View archive",
   no_archive: "Nothing archived yet. Cleared items appear here.",
   archived_on: "Archived",
+  needs_config: "Grocery List not configured",
+  needs_config_hint: "Open the card editor and pick a Grocery List, or set 'entry_id' in YAML.",
+  select_list_entry: "Grocery List instance",
+  no_entries: "No Grocery List integration found. Add it under Settings \u2192 Devices & Services first.",
+  title: "Title (optional)",
 };
 
 const DE: Dict = {
@@ -74,6 +79,15 @@ const DE: Dict = {
   move_down: "Nach unten",
   close: "Schlie\u00dfen",
   delete_category_confirm: "Diese Kategorie l\u00f6schen? Ihre Artikel werden dann ohne Kategorie angezeigt.",
+  archive: "Archiv",
+  view_archive: "Archiv anzeigen",
+  no_archive: "Noch nichts archiviert. Entfernte Artikel erscheinen hier.",
+  archived_on: "Archiviert",
+  needs_config: "Einkaufsliste nicht konfiguriert",
+  needs_config_hint: "\u00d6ffne den Karten-Editor und w\u00e4hle eine Einkaufsliste, oder setze 'entry_id' im YAML.",
+  select_list_entry: "Einkaufslisten-Instanz",
+  no_entries: "Keine Einkaufslisten-Integration gefunden. F\u00fcge sie zuerst unter Einstellungen \u2192 Ger\u00e4te & Dienste hinzu.",
+  title: "Titel (optional)",
 };
 
 const TABLES: Record<string, Dict> = { en: EN, de: DE };

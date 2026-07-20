@@ -49,16 +49,40 @@ export class GroceryListCard extends LitElement {
   private _subscribedEntry?: string;
 
   setConfig(config: GroceryCardConfig): void {
-    if (!config || !config.entry_id) {
-      throw new Error("grocery-list-card: 'entry_id' is required");
-    }
-    this._config = config;
-    if (config.slug) this._activeSlug = config.slug;
+    // Do NOT throw on a missing entry_id: the Lovelace card picker instantiates
+    // the element to render a preview before any config exists, and throwing
+    // aborts the custom-element upgrade ("Custom element not found"). Instead we
+    // accept the config and render a friendly "needs configuration" state.
+    const cfg: GroceryCardConfig =
+      config ?? { type: "custom:grocery-list-card", entry_id: "" };
+    this._config = cfg;
+    if (cfg.slug) this._activeSlug = cfg.slug;
     // Re-subscribe if the entry changed.
-    if (this._subscribedEntry && this._subscribedEntry !== config.entry_id) {
+    if (this._subscribedEntry && this._subscribedEntry !== cfg.entry_id) {
       this._teardown();
     }
     this._maybeSubscribe();
+  }
+
+  // Lovelace: provide the visual editor element.
+  static getConfigElement(): HTMLElement {
+    return document.createElement("grocery-list-card-editor");
+  }
+
+  // Lovelace: default config used for the picker preview + when the user first
+  // adds the card. Auto-selects the first grocery_list config entry if present.
+  static async getStubConfig(hass: HomeAssistant): Promise<GroceryCardConfig> {
+    let entryId = "";
+    try {
+      const entries = await hass.connection.sendMessagePromise<
+        Array<{ entry_id: string; domain: string }>
+      >({ type: "config_entries/get", domain: "grocery_list" });
+      const match = entries.find((e) => e.domain === "grocery_list");
+      if (match) entryId = match.entry_id;
+    } catch (_e) {
+      // Fall back to an empty entry_id; the editor lets the user pick.
+    }
+    return { type: "custom:grocery-list-card", entry_id: entryId };
   }
 
   // HA calls this to size the card in masonry view.
@@ -86,7 +110,7 @@ export class GroceryListCard extends LitElement {
   }
 
   private async _maybeSubscribe(): Promise<void> {
-    if (!this.hass || !this._config) return;
+    if (!this.hass || !this._config || !this._config.entry_id) return;
     if (this._subscribedEntry === this._config.entry_id) return;
     this._teardown();
     this._subscribedEntry = this._config.entry_id;
@@ -127,6 +151,15 @@ export class GroceryListCard extends LitElement {
   // ----- Rendering -------------------------------------------------------
 
   render() {
+    const tt = makeT(this._lang);
+    if (!this._config?.entry_id) {
+      return html`<ha-card>
+        <div class="gl-empty">
+          <p><strong>${tt("needs_config")}</strong></p>
+          <p>${tt("needs_config_hint")}</p>
+        </div>
+      </ha-card>`;
+    }
     if (!this._snapshot) {
       return html`<ha-card><div class="gl-empty">\u2026</div></ha-card>`;
     }
@@ -645,10 +678,106 @@ export class GroceryListCard extends LitElement {
   }
 }
 
+// Visual config editor for the card. Lets the user pick a Grocery List
+// integration instance (config entry) from a dropdown instead of hunting for
+// an entry_id, plus optional list slug and title.
+@customElement("grocery-list-card-editor")
+export class GroceryListCardEditor extends LitElement {
+  @property({ attribute: false }) hass!: HomeAssistant;
+  @state() private _config: GroceryCardConfig = {
+    type: "custom:grocery-list-card",
+    entry_id: "",
+  };
+  @state() private _entries: Array<{ entry_id: string; title: string }> = [];
+
+  setConfig(config: GroceryCardConfig): void {
+    this._config = config ?? {
+      type: "custom:grocery-list-card",
+      entry_id: "",
+    };
+  }
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    void this._loadEntries();
+  }
+
+  private async _loadEntries(): Promise<void> {
+    if (!this.hass) return;
+    try {
+      const entries = await this.hass.connection.sendMessagePromise<
+        Array<{ entry_id: string; domain: string; title: string }>
+      >({ type: "config_entries/get", domain: "grocery_list" });
+      this._entries = entries
+        .filter((e) => e.domain === "grocery_list")
+        .map((e) => ({ entry_id: e.entry_id, title: e.title }));
+    } catch (_e) {
+      this._entries = [];
+    }
+  }
+
+  private get _lang(): string {
+    return resolveLang(
+      this.hass?.locale?.language ?? this.hass?.language
+    );
+  }
+
+  private _emit(next: GroceryCardConfig): void {
+    this._config = next;
+    this.dispatchEvent(
+      new CustomEvent("config-changed", {
+        detail: { config: next },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  render(): TemplateResult {
+    const t = makeT(this._lang);
+    return html`
+      <div class="gl-editor">
+        <label>${t("select_list_entry")}</label>
+        ${this._entries.length
+          ? html`<select
+              .value=${this._config.entry_id}
+              @change=${(e: Event) =>
+                this._emit({
+                  ...this._config,
+                  entry_id: (e.target as HTMLSelectElement).value,
+                })}
+            >
+              <option value="" ?selected=${!this._config.entry_id}></option>
+              ${this._entries.map(
+                (en) => html`<option
+                  value=${en.entry_id}
+                  ?selected=${en.entry_id === this._config.entry_id}
+                >
+                  ${en.title || en.entry_id}
+                </option>`
+              )}
+            </select>`
+          : html`<p>${t("no_entries")}</p>`}
+        <label>${t("title")}</label>
+        <input
+          .value=${this._config.title ?? ""}
+          @input=${(e: Event) => {
+            const v = (e.target as HTMLInputElement).value;
+            this._emit({ ...this._config, title: v || undefined });
+          }}
+        />
+      </div>
+    `;
+  }
+}
+
 // Register the card in HA's picker.
 (window as any).customCards = (window as any).customCards || [];
 (window as any).customCards.push({
   type: "grocery-list-card",
   name: "Grocery List Card",
   description: "A slick, mobile-first grocery list with categories and sync.",
+  preview: true,
+  documentationURL:
+    "https://codeberg.org/Apollo3zehn/ha-grocery-list",
 });
