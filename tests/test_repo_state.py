@@ -2,7 +2,6 @@
 
 from grocery_list.categories import CategorySet
 from grocery_list.models import ArchivedItem, Item, ListState, Tombstone
-from grocery_list.oplog import OpLog, make_action_op
 from grocery_list.repo_state import RepoState, merge_repo_states
 
 
@@ -19,7 +18,7 @@ def _item(iid, name, cat=None, checked=False, ts="2026-01-01T00:00:00Z"):
     )
 
 
-def test_roundtrip_files_lists_categories_oplog():
+def test_roundtrip_files_lists_categories():
     cats = CategorySet()
     veg = cats.create("Vegetables")
     state = ListState(slug="rewe", title="Rewe")
@@ -30,20 +29,14 @@ def test_roundtrip_files_lists_categories_oplog():
     state.tombstones = {
         "gone": Tombstone(id="gone", deleted_ts="2026-01-02T00:00:00Z")
     }
-    oplog = OpLog()
-    oplog.append(
-        make_action_op(
-            identity="pi", entity="item", scope="rewe",
-            target_id="i1", before=None, after={"id": "i1"},
-        )
-    )
-    rs = RepoState(lists={"rewe": state}, categories=cats, oplog=oplog)
+    rs = RepoState(lists={"rewe": state}, categories=cats)
 
     files = rs.to_files()
     assert "lists/rewe.md" in files
     assert ".grocery/tombstones/rewe.json" in files
     assert ".grocery/categories.json" in files
-    assert ".grocery/oplog.jsonl" in files
+    # The undo/redo op-log is in-memory only; it is never serialized.
+    assert ".grocery/oplog.jsonl" not in files
 
     restored = RepoState.from_files(files)
     assert set(restored.lists) == {"rewe"}
@@ -53,14 +46,12 @@ def test_roundtrip_files_lists_categories_oplog():
     assert r.items["i1"].category == veg.id
     assert "gone" in r.tombstones
     assert restored.categories.order_ids() == cats.order_ids()
-    assert len(restored.oplog.ops) == 1
 
 
 def test_from_files_empty():
     rs = RepoState.from_files({})
     assert rs.lists == {}
     assert rs.categories.ordered() == []
-    assert rs.oplog.ops == []
 
 
 def test_from_files_tombstone_without_md_creates_state():
@@ -112,23 +103,6 @@ def test_merge_repo_states_item_addition_within_same_list():
         RepoState(lists={"a": theirs}),
     )
     assert set(merged.lists["a"].items) == {"i1", "i2"}
-
-
-def test_merge_repo_states_oplog_union():
-    a = make_action_op(
-        identity="pi", entity="item", scope="a",
-        target_id="i1", before=None, after={"id": "i1"},
-    )
-    b = make_action_op(
-        identity="tab", entity="item", scope="a",
-        target_id="i2", before=None, after={"id": "i2"},
-    )
-    merged = merge_repo_states(
-        RepoState(),
-        RepoState(oplog=OpLog([a])),
-        RepoState(oplog=OpLog([b])),
-    )
-    assert {o.op_id for o in merged.oplog.ops} == {a.op_id, b.op_id}
 
 
 def test_merge_repo_states_checked_wins_across_sides():

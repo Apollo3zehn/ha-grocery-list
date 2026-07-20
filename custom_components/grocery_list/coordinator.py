@@ -56,7 +56,6 @@ from .const import (
     DEFAULT_PUSH_DEBOUNCE,
     DOMAIN,
     LIST_TOMBSTONES_FILE,
-    OPLOG_FILE,
     SYNC_ERROR,
     SYNC_LOCAL,
     SYNC_OFFLINE,
@@ -79,7 +78,14 @@ from .models import (
     new_id,
     utcnow_iso,
 )
-from .oplog import ENTITY_CATEGORY, ENTITY_ITEM, ENTITY_LIST, Op, make_action_op
+from .oplog import (
+    ENTITY_CATEGORY,
+    ENTITY_ITEM,
+    ENTITY_LIST,
+    Op,
+    OpLog,
+    make_action_op,
+)
 from .repo_state import RepoState, merge_repo_states
 
 _LOGGER = logging.getLogger(__name__)
@@ -98,6 +104,9 @@ class GroceryCoordinator:
         )
         self._backend: GitBackend | None = None
         self.state = RepoState()
+        # Undo/redo op-log is in-memory only (per-identity, per-runtime). It is
+        # intentionally never persisted or synced through git.
+        self._oplog = OpLog()
         self.sync_state: str = SYNC_OFFLINE
         self.last_synced_commit: str | None = None
 
@@ -464,7 +473,6 @@ class GroceryCoordinator:
             f".grocery/tombstones/{slug}.json" for slug in self.state.lists
         ]
         paths.append(".grocery/categories.json")
-        paths.append(OPLOG_FILE)
         paths.append(LIST_TOMBSTONES_FILE)
         return paths
 
@@ -481,7 +489,7 @@ class GroceryCoordinator:
 
     def _record_and_schedule(self, op: Op) -> None:
         """Append an op to the shared log and arm a debounced push/write."""
-        self.state.oplog.append(op)
+        self._oplog.append(op)
         self._notify()
         if self.sync_enabled:
             self._schedule_push()
@@ -747,7 +755,7 @@ class GroceryCoordinator:
             state.tombstones[item_id] = Tombstone(
                 id=item_id, deleted_ts=now, reason="cleared"
             )
-            self.state.oplog.append(
+            self._oplog.append(
                 make_action_op(
                     identity=self.identity,
                     entity=ENTITY_ITEM,
@@ -1039,7 +1047,7 @@ class GroceryCoordinator:
     @callback
     def async_undo(self) -> bool:
         """Undo this identity's most recent action (PLAN §6)."""
-        marker = self.state.oplog.make_undo_marker(self.identity)
+        marker = self._oplog.make_undo_marker(self.identity)
         if marker is None:
             return False
         # marker.after holds the 'before' snapshot we revert to.
@@ -1050,7 +1058,7 @@ class GroceryCoordinator:
     @callback
     def async_redo(self) -> bool:
         """Redo this identity's most recently undone action (PLAN §6)."""
-        marker = self.state.oplog.make_redo_marker(self.identity)
+        marker = self._oplog.make_redo_marker(self.identity)
         if marker is None:
             return False
         # marker.after holds the snapshot to re-apply.
@@ -1060,11 +1068,11 @@ class GroceryCoordinator:
 
     @property
     def can_undo(self) -> bool:
-        return self.state.oplog.can_undo(self.identity)
+        return self._oplog.can_undo(self.identity)
 
     @property
     def can_redo(self) -> bool:
-        return self.state.oplog.can_redo(self.identity)
+        return self._oplog.can_redo(self.identity)
 
     # -- snapshot (for the websocket API) ----------------------------------
 

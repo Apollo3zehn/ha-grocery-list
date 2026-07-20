@@ -5,4 +5,3 @@
 lists/*.md text eol=lf
 archive/*.md text eol=lf
 .grocery/categories.json text eol=lf
-.grocery/oplog.jsonl text eol=lf

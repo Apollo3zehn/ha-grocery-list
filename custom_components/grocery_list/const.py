@@ -37,7 +37,6 @@ LISTS_DIR = "lists"
 ARCHIVE_DIR = "archive"
 META_DIR = ".grocery"
 CATEGORIES_FILE = f"{META_DIR}/categories.json"
-OPLOG_FILE = f"{META_DIR}/oplog.jsonl"
 # Central registry of list-level tombstones (deleted lists) so a delete on one
 # device isn't resurrected by another that still has the list markdown. Mirrors
 # the category tombstone pattern; list *existence*/title live in the markdown.

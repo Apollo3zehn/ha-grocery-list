@@ -100,7 +100,6 @@ The synced git repo uses:
 lists/<slug>.md              # one file per list (human-readable Markdown)
 archive/<slug>.md            # archived (cleared) items per list
 .grocery/categories.json     # user-managed categories + tombstones
-.grocery/oplog.jsonl         # shared append-only op-log (undo/redo)
 .grocery/tombstones/<slug>.json  # per-list deletion tombstones
 ```
 

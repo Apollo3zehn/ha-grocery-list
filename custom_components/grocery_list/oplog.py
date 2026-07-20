@@ -1,18 +1,14 @@
-"""Shared, synced operation log with per-identity undo/redo (PLAN §6).
+"""In-memory operation log for per-identity undo/redo.
 
-The op-log is an append-only JSONL file (``.grocery/oplog.jsonl``) synced through
-the git repo. Every user action appends one ``Op``. Undo/redo are **per
-identity** (PLAN decision B): an instance can only undo/redo its *own* actions,
-even though every instance sees the full shared log.
+The op-log is an **in-memory-only** append-only list of :class:`Op` entries. It
+is never persisted to disk or synced through git; it exists only for the
+lifetime of the running coordinator. Undo/redo are **per identity**: an instance
+can only undo/redo its own actions.
 
-WHY per-identity and append-only:
-- Append-only means the log merges trivially and safely across devices: the
-  merge is a union by ``op_id`` (see ``merge_oplogs``). No rewriting history.
+WHY append-only + marker ops:
 - Undo/redo never delete or rewrite ops. Instead they append *marker* ops
   (``undoes``/``redoes`` referencing a prior ``op_id``). The effective undo/redo
-  availability is *derived* by deterministically replaying the log. Because the
-  replay is a pure function of the (merged) log, every device computes the same
-  state.
+  availability is *derived* by replaying the log.
 
 OP EFFECT MODEL:
 Each action op stores a ``before`` and ``after`` snapshot of the affected entity
@@ -29,13 +25,12 @@ REPLAY SEMANTICS (per identity):
   stack.
 - A ``redoes=X`` marker pops X from the redo stack and pushes X to the undo
   stack.
-Ops are replayed in a deterministic order: (ts, op_id).
+Ops are replayed in insertion order (via a monotonic ``seq``).
 """
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from .models import new_id, utcnow_iso
 
@@ -47,7 +42,7 @@ ENTITY_LIST = "list"
 
 @dataclass(slots=True)
 class Op:
-    """A single operation in the shared log.
+    """A single operation in the in-memory log.
 
     ``before``/``after`` are serialized entity snapshots (dicts) or ``None``.
     For a plain action exactly one of the following holds:
@@ -63,7 +58,7 @@ class Op:
     op_id: str
     identity: str
     ts: str
-    entity: str  # ENTITY_ITEM | ENTITY_CATEGORY
+    entity: str  # ENTITY_ITEM | ENTITY_CATEGORY | ENTITY_LIST
     scope: str  # list slug for items; "" for categories
     target_id: str
     before: dict | None = None
@@ -71,40 +66,7 @@ class Op:
     undoes: str | None = None
     redoes: str | None = None
     label: str = ""  # optional human-readable action label (e.g. "add_item")
-    seq: int = 0  # monotonic per-instance tiebreak for same-``ts`` causal order
-
-    def to_dict(self) -> dict:
-        return {
-            "op_id": self.op_id,
-            "identity": self.identity,
-            "ts": self.ts,
-            "entity": self.entity,
-            "scope": self.scope,
-            "target_id": self.target_id,
-            "before": self.before,
-            "after": self.after,
-            "undoes": self.undoes,
-            "redoes": self.redoes,
-            "label": self.label,
-            "seq": self.seq,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "Op":
-        return cls(
-            op_id=str(data["op_id"]),
-            identity=str(data.get("identity", "")),
-            ts=str(data.get("ts") or utcnow_iso()),
-            entity=str(data.get("entity", ENTITY_ITEM)),
-            scope=str(data.get("scope", "")),
-            target_id=str(data.get("target_id", "")),
-            before=data.get("before"),
-            after=data.get("after"),
-            undoes=data.get("undoes"),
-            redoes=data.get("redoes"),
-            label=str(data.get("label", "")),
-            seq=int(data.get("seq", 0)),
-        )
+    seq: int = 0  # monotonic tiebreak preserving insertion (replay) order
 
     @property
     def is_marker(self) -> bool:
@@ -136,30 +98,10 @@ def make_action_op(
 
 
 class OpLog:
-    """An in-memory view over the append-only operation log."""
+    """An in-memory append-only operation log with per-identity undo/redo."""
 
     def __init__(self, ops: list[Op] | None = None) -> None:
         self._ops: list[Op] = list(ops or [])
-
-    # -- persistence --------------------------------------------------------
-
-    @classmethod
-    def parse(cls, text: str) -> "OpLog":
-        """Parse JSONL text into an OpLog (blank lines ignored)."""
-        ops: list[Op] = []
-        for line in text.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            ops.append(Op.from_dict(json.loads(line)))
-        return cls(ops)
-
-    def serialize(self) -> str:
-        """Serialize to JSONL in deterministic (ts, op_id) order."""
-        out = []
-        for op in self.ordered():
-            out.append(json.dumps(op.to_dict(), separators=(",", ":"), sort_keys=True))
-        return "\n".join(out) + ("\n" if out else "")
 
     # -- access -------------------------------------------------------------
 
@@ -168,14 +110,12 @@ class OpLog:
         return self._ops
 
     def ordered(self) -> list[Op]:
-        """Return ops in deterministic replay order: (ts, seq, op_id).
+        """Return ops in deterministic replay order: (seq, op_id).
 
-        ``seq`` is a monotonic per-instance counter that preserves causal order
-        among ops sharing the same second-resolution ``ts``. ``op_id`` remains
-        the final tiebreak so ops authored on different instances within the
-        same second still sort deterministically across all devices.
+        ``seq`` is a monotonic counter assigned on append that preserves the
+        insertion (causal) order of operations.
         """
-        return sorted(self._ops, key=lambda o: (o.ts, o.seq, o.op_id))
+        return sorted(self._ops, key=lambda o: (o.seq, o.op_id))
 
     def by_id(self, op_id: str) -> Op | None:
         for op in self._ops:
@@ -187,9 +127,7 @@ class OpLog:
         """Append an op, assigning a monotonic ``seq`` if it has none.
 
         The new ``seq`` is one greater than the current maximum so freshly
-        appended ops always sort *after* everything already in the log that
-        shares their timestamp. Ops that arrive via merge keep their authored
-        ``seq`` (they are deduped by ``op_id`` in ``merge_oplogs``).
+        appended ops always sort *after* everything already in the log.
         """
         if op.seq == 0:
             op.seq = (max((o.seq for o in self._ops), default=0)) + 1
@@ -291,20 +229,3 @@ class OpLog:
             redoes=target.op_id,
             label=f"redo:{target.label}",
         )
-
-
-def merge_oplogs(base: OpLog, ours: OpLog, theirs: OpLog) -> OpLog:
-    """Merge three op-logs by union of op_ids (append-only => union is correct).
-
-    The base is unused beyond conceptual clarity: since the log is append-only
-    and op_ids are globally unique, the merged log is simply the set-union of
-    all ops from all three snapshots, kept in deterministic (ts, op_id) order.
-    """
-    seen: dict[str, Op] = {}
-    for log in (base, ours, theirs):
-        for op in log.ops:
-            seen.setdefault(op.op_id, op)
-    merged = OpLog(list(seen.values()))
-    # Normalize internal order so serialization is deterministic.
-    merged._ops = merged.ordered()  # noqa: SLF001 - internal normalization
-    return merged

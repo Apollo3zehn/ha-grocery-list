@@ -61,7 +61,7 @@ async def test_add_item_records_op_and_pending(coordinator: GroceryCoordinator):
     assert item.qty is not None and item.qty.value == 2
     state = coordinator.state.lists["rewe"]
     assert item.id in state.items
-    assert len(coordinator.state.oplog.ops) == 1
+    assert len(coordinator._oplog.ops) == 1
     assert coordinator.sync_state == SYNC_PENDING
 
 
@@ -222,7 +222,7 @@ async def test_create_list_records_op_and_switch(coordinator: GroceryCoordinator
     assert state.slug == "weekend-bbq"
     assert state.title == "Weekend BBQ"
     assert "weekend-bbq" in coordinator.state.lists
-    assert len(coordinator.state.oplog.ops) == 1
+    assert len(coordinator._oplog.ops) == 1
     assert coordinator.sync_state == SYNC_PENDING
 
 
