@@ -148,6 +148,18 @@ export class GroceryListCard extends LitElement {
     );
   }
 
+  // Slug to target for new items. Falls back to the configured slug (or
+  // "default") when no list exists yet, so the first add creates the list
+  // on the backend via _ensure_list.
+  private _targetSlug(): string {
+    return (
+      this._activeList()?.slug ??
+      this._activeSlug ??
+      this._config?.slug ??
+      "default"
+    );
+  }
+
   // ----- Rendering -------------------------------------------------------
 
   render() {
@@ -620,13 +632,15 @@ export class GroceryListCard extends LitElement {
 
   private _commitAdd(): void {
     const name = this._draftName.trim();
-    const list = this._activeList();
-    if (!name || !list || !this._api) return;
-    void this._api.addItem(list.slug, name, {
+    if (!name || !this._api) return;
+    const slug = this._targetSlug();
+    void this._api.addItem(slug, name, {
       category: this._draftCategory,
       qty_value: this._draftQty || null,
       qty_unit: this._draftQty ? this._draftUnit || this._defaultUnit : null,
     });
+    // Ensure the newly-created list becomes the active one.
+    this._activeSlug = slug;
     // Reset the name but keep qty/unit/category for fast repeated entry.
     this._draftName = "";
   }
