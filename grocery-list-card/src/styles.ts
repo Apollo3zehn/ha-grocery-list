@@ -74,7 +74,6 @@ export const cardStyles = css`
     align-items: center;
     justify-content: center;
   }
-  .gl-mono { filter: grayscale(1); }
   .gl-icon-btn:hover { background: rgba(127,127,127,0.12); }
   .gl-icon-btn:disabled { opacity: 0.35; cursor: default; }
   .gl-icon-btn:disabled:hover { background: transparent; }

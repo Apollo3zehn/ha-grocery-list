@@ -765,6 +765,65 @@ class GroceryCoordinator:
         return cleared
 
     @callback
+    def async_restore_archived(
+        self, slug: str, item_id: str, archived_ts: str | None = None
+    ) -> Item | None:
+        """Restore an archived item back onto its list (PLAN §4.6).
+
+        Undoes a prior clear-checked for a single entry: the archived item is
+        re-added to the live list (unchecked so it lands in the active section),
+        its ``cleared`` tombstone is dropped so it isn't suppressed on
+        serialize/merge, and the matching archive entry is removed. An
+        ``add_item``-shaped op is recorded so the restore is itself per-identity
+        undoable and syncs like any other change. When ``archived_ts`` is given
+        it disambiguates a specific entry (an id can be archived more than once);
+        otherwise the newest matching entry is restored. Returns the restored
+        item, or ``None`` if no matching archive entry exists.
+        """
+        archive = self.state.archives.get(slug)
+        if not archive:
+            return None
+        # Pick the target entry: exact (id, archived_ts) if given, else the
+        # newest entry for this id (archives are appended in time order).
+        idx: int | None = None
+        for i in range(len(archive) - 1, -1, -1):
+            entry = archive[i]
+            if entry.item.id != item_id:
+                continue
+            if archived_ts is None or entry.archived_ts == archived_ts:
+                idx = i
+                break
+        if idx is None:
+            return None
+        entry = archive.pop(idx)
+        if not archive:
+            self.state.archives.pop(slug, None)
+
+        state = self.state.lists.get(slug)
+        if state is None:
+            state = self._ensure_list(slug)
+        item = entry.item
+        # Land in the active section and mark as freshly touched by us.
+        item.checked = False
+        item.checked_ts = None
+        item.updated_ts = utcnow_iso()
+        state.items[item.id] = item
+        # Drop the clear-checked tombstone so serialize/merge keep the item.
+        state.tombstones.pop(item.id, None)
+        self._record_and_schedule(
+            make_action_op(
+                identity=self.identity,
+                entity=ENTITY_ITEM,
+                scope=slug,
+                target_id=item.id,
+                before=None,
+                after=item.to_dict(),
+                label="restore_archived",
+            )
+        )
+        return item
+
+    @callback
     def async_purge_archives(self) -> int:
         """Drop archived entries older than the retention window (PLAN §4.6).
 

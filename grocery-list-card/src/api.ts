@@ -71,6 +71,18 @@ export class GroceryApi {
     return this.send("clear_checked", { slug });
   }
 
+  restoreArchived(
+    slug: string,
+    itemId: string,
+    archivedTs?: string
+  ): Promise<{ item: Item }> {
+    return this.send("restore_archived", {
+      slug,
+      item_id: itemId,
+      archived_ts: archivedTs ?? null,
+    });
+  }
+
   createList(
     title: string,
     slug?: string | null

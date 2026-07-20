@@ -134,6 +134,37 @@ async def test_undo_clear_checked_removes_archive_entry(
     assert "rewe" not in coordinator.state.archives
 
 
+async def test_restore_archived_returns_item_to_list(
+    coordinator: GroceryCoordinator,
+):
+    """restore_archived re-adds a cleared item and drops its archive entry."""
+    a = coordinator.async_add_item("rewe", "Milk")
+    coordinator.async_set_checked("rewe", a.id, True)
+    coordinator.async_clear_checked("rewe")
+    # Precondition: archived and removed from the live list with a tombstone.
+    assert a.id not in coordinator.state.lists["rewe"].items
+    assert {e.item.id for e in coordinator.state.archives["rewe"]} == {a.id}
+
+    restored = coordinator.async_restore_archived("rewe", a.id)
+
+    assert restored is not None
+    assert restored.id == a.id
+    # Comes back unchecked so it lands in the active section.
+    assert restored.checked is False
+    assert a.id in coordinator.state.lists["rewe"].items
+    # Archive entry dropped; empty per-slug archive pruned.
+    assert "rewe" not in coordinator.state.archives
+    # Tombstone cleared so a merge won't re-suppress the restored item.
+    assert a.id not in coordinator.state.lists["rewe"].tombstones
+
+
+async def test_restore_archived_missing_returns_none(
+    coordinator: GroceryCoordinator,
+):
+    """Restoring an unknown id is a no-op that returns None."""
+    assert coordinator.async_restore_archived("rewe", "does-not-exist") is None
+
+
 async def test_category_crud(coordinator: GroceryCoordinator):
     cat = coordinator.async_create_category("Vegetables")
     assert cat.id in coordinator.state.categories.categories

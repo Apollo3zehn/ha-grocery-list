@@ -40,7 +40,7 @@ def _stub_dependencies(hass: HomeAssistant):
     the test env). Marking the deps as already-loaded lets the flow complete;
     the flow itself needs none of them.
     """
-    for comp in ("http", "websocket_api", "frontend"):
+    for comp in ("http", "websocket_api", "frontend", "lovelace"):
         hass.config.components.add(comp)
     yield
 

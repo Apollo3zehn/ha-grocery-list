@@ -45,6 +45,7 @@ WS_UPDATE_ITEM = f"{DOMAIN}/update_item"
 WS_SET_CHECKED = f"{DOMAIN}/set_checked"
 WS_DELETE_ITEM = f"{DOMAIN}/delete_item"
 WS_CLEAR_CHECKED = f"{DOMAIN}/clear_checked"
+WS_RESTORE_ARCHIVED = f"{DOMAIN}/restore_archived"
 WS_CREATE_LIST = f"{DOMAIN}/create_list"
 WS_RENAME_LIST = f"{DOMAIN}/rename_list"
 WS_DELETE_LIST = f"{DOMAIN}/delete_list"
@@ -93,6 +94,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_set_checked)
     websocket_api.async_register_command(hass, ws_delete_item)
     websocket_api.async_register_command(hass, ws_clear_checked)
+    websocket_api.async_register_command(hass, ws_restore_archived)
     websocket_api.async_register_command(hass, ws_create_list)
     websocket_api.async_register_command(hass, ws_rename_list)
     websocket_api.async_register_command(hass, ws_delete_list)
@@ -288,6 +290,38 @@ def ws_clear_checked(
         return
     cleared = coordinator.async_clear_checked(msg["slug"])
     connection.send_result(msg["id"], {"cleared": cleared})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_RESTORE_ARCHIVED,
+        vol.Required("entry_id"): str,
+        vol.Required("slug"): str,
+        vol.Required("item_id"): str,
+        vol.Optional("archived_ts"): vol.Any(str, None),
+    }
+)
+@callback
+def ws_restore_archived(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Restore a single archived item back onto its list."""
+    coordinator = _require_coordinator(hass, connection, msg)
+    if coordinator is None:
+        return
+    item = coordinator.async_restore_archived(
+        msg["slug"], msg["item_id"], msg.get("archived_ts")
+    )
+    if item is None:
+        connection.send_error(
+            msg["id"],
+            websocket_api.const.ERR_NOT_FOUND,
+            "Archived item not found",
+        )
+        return
+    connection.send_result(msg["id"], {"item": item.to_dict()})
 
 
 # ---------------------------------------------------------------------------

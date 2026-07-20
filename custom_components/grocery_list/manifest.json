@@ -3,11 +3,11 @@
   "name": "Grocery List",
   "codeowners": ["@Apollo3zehn"],
   "config_flow": true,
-  "dependencies": ["http", "websocket_api", "frontend"],
+  "dependencies": ["http", "websocket_api", "frontend", "lovelace"],
   "documentation": "https://codeberg.org/Apollo3zehn/ha-grocery-list",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://codeberg.org/Apollo3zehn/ha-grocery-list/issues",
   "requirements": ["dulwich==0.22.1", "paramiko==3.4.0"],
-  "version": "0.2.1"
+  "version": "0.2.2"
 }

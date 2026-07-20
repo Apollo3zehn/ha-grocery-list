@@ -223,10 +223,26 @@ export class GroceryListCard extends LitElement {
             @click=${() => this._api?.sync()}
           >\u21bb</button>
           <button
-            class="gl-icon-btn gl-mono"
+            class="gl-icon-btn"
             title=${t("view_archive")}
             @click=${() => (this._archiveOpen = true)}
-          >\u{1F4E6}</button>
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M3 7h18v3H3z" />
+              <path d="M5 10v9h14v-9" />
+              <path d="M10 13h4" />
+            </svg>
+          </button>
           <button
             class="gl-icon-btn"
             title=${t("settings")}
@@ -495,12 +511,19 @@ export class GroceryListCard extends LitElement {
         <button
           class="gl-clear-btn"
           ?disabled=${!hasChecked}
-          @click=${() => list && this._api?.clearChecked(list.slug)}
+          @click=${() => this._clearCheckedConfirm(t)}
         >
           ${t("clear_checked")}
         </button>
       </div>
     `;
+  }
+
+  private _clearCheckedConfirm(t: (k: string) => string): void {
+    const list = this._activeList();
+    if (!list) return;
+    if (!window.confirm(t("clear_checked_confirm"))) return;
+    void this._api?.clearChecked(list.slug);
   }
 
   private _renderArchive(t: (k: string) => string): TemplateResult {
@@ -548,8 +571,19 @@ export class GroceryListCard extends LitElement {
         <span class="gl-archive-ts"
           >${t("archived_on")} ${this._fmtArchiveTs(a.archived_ts)}</span
         >
+        <button
+          class="gl-icon-btn"
+          title=${t("restore")}
+          @click=${() => this._restoreArchived(a)}
+        >\u21a9</button>
       </li>
     `;
+  }
+
+  private _restoreArchived(a: ArchivedItem): void {
+    const slug = this._activeSlug;
+    if (!slug) return;
+    void this._api?.restoreArchived(slug, a.item.id, a.archived_ts);
   }
 
   private _fmtArchiveTs(ts: string): string {
