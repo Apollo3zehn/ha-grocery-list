@@ -136,6 +136,23 @@ cd grocery-list-card && npm install && npm run build
 npm run lint
 ```
 
+### Releasing
+
+Releases are tag-driven; HACS installs from GitHub releases. To cut a release:
+
+```bash
+# Tag with a semver version prefixed by `v`, then push the tag.
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Pushing a `v*` tag triggers the release workflow
+(`.github/workflows/release.yml`), which builds the card, stamps
+`manifest.json` to the tag version, zips the integration, and publishes a
+GitHub release with `grocery_list.zip` attached. HACS downloads that zip (see
+`zip_release`/`filename` in `hacs.json`). The `Validate` workflow runs
+hassfest and HACS checks on every push and pull request.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

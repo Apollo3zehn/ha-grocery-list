@@ -1,0 +1,57 @@
+name: Release
+
+# Tag-driven releases (HACS installs from GitHub releases/tags). Push a
+# semver tag like `v1.2.3` to build the card, stamp the manifest version to
+# match the tag, and publish a GitHub release with a zip of the integration.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build the Lovelace card
+        working-directory: grocery-list-card
+        run: |
+          npm ci
+          npm run build
+
+      - name: Stamp manifest version to match the tag
+        run: |
+          python - <<'PY'
+          import json, os
+          p = "custom_components/grocery_list/manifest.json"
+          with open(p) as fh:
+              data = json.load(fh)
+          data["version"] = os.environ["VERSION"]
+          with open(p, "w") as fh:
+              json.dump(data, fh, indent=2)
+              fh.write("\n")
+          PY
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Zip the integration
+        working-directory: custom_components/grocery_list
+        run: zip -r grocery_list.zip . -x '*.pyc' -x '__pycache__/*'
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: custom_components/grocery_list/grocery_list.zip
+          generate_release_notes: true
