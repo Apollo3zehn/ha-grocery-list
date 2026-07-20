@@ -3,6 +3,24 @@
     "step": {
       "user": {
         "title": "Grocery List Setup",
+        "description": "Choose how this Home Assistant instance stores its grocery lists.",
+        "menu_options": {
+          "local": "Local only (no sync)",
+          "git": "Sync with a git repository"
+        }
+      },
+      "local": {
+        "title": "Local Grocery List",
+        "description": "Give this Home Assistant instance a name. Your lists are stored locally and are not synced to any git repository.",
+        "data": {
+          "identity": "Instance name"
+        },
+        "data_description": {
+          "identity": "This name is stored with every item you add (the 'added by' field) and scopes your undo/redo history."
+        }
+      },
+      "git": {
+        "title": "Grocery List Setup",
         "description": "Give this Home Assistant instance a name and connect it to your git repository. The repository will be cloned to validate the connection; setup only completes if the clone succeeds.",
         "data": {
           "identity": "Instance name",
@@ -27,7 +45,8 @@
       "clone_failed": "Could not clone the repository. Check the URL and credentials.",
       "auth_failed": "Authentication failed. Check your SSH key or access token.",
       "invalid_url": "The repository URL is not valid for the selected authentication method.",
-      "key_read_failed": "Could not read the SSH key file at the given path."
+      "key_read_failed": "Could not read the SSH key file at the given path.",
+      "identity_required": "Please enter an instance name."
     },
     "abort": {
       "already_configured": "This repository is already configured."

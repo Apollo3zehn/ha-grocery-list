@@ -22,7 +22,9 @@ from custom_components.grocery_list.const import (
     CONF_BRANCH,
     CONF_IDENTITY,
     CONF_REPO_URL,
+    CONF_SYNC_ENABLED,
     DOMAIN,
+    SYNC_LOCAL,
     SYNC_PENDING,
 )
 from custom_components.grocery_list.coordinator import GroceryCoordinator
@@ -349,3 +351,126 @@ async def test_purge_disabled_when_retention_zero(
     ]
     assert coordinator.async_purge_archives() == 0
     assert len(coordinator.state.archives["rewe"]) == 1
+
+
+@pytest.fixture
+async def local_coordinator(
+    hass: HomeAssistant, tmp_path
+) -> GroceryCoordinator:
+    """Build a local-only coordinator (no git remote, sync disabled).
+
+    The work dir is redirected to a writable tmp path since the HA test
+    harness's config dir (under site-packages) is not writable.
+    """
+    entry = ConfigEntry(
+        version=1,
+        minor_version=1,
+        domain=DOMAIN,
+        title="kitchen-pi (local)",
+        data={
+            CONF_IDENTITY: "kitchen-pi",
+            CONF_SYNC_ENABLED: False,
+        },
+        source="user",
+        options={},
+        unique_id="local#kitchen-pi",
+        discovery_keys=None,
+        subentries_data=None,
+    )
+    coordinator = GroceryCoordinator(hass, entry)
+    coordinator._work_dir = str(tmp_path / "work")
+    return coordinator
+
+
+async def test_local_sync_enabled_false(local_coordinator: GroceryCoordinator):
+    assert local_coordinator.sync_enabled is False
+
+
+async def test_sync_enabled_defaults_true_when_absent(hass: HomeAssistant):
+    """Entries created before local mode existed have no CONF_SYNC_ENABLED."""
+    entry = ConfigEntry(
+        version=1,
+        minor_version=1,
+        domain=DOMAIN,
+        title="legacy",
+        data={
+            CONF_IDENTITY: "legacy",
+            CONF_AUTH_METHOD: "https",
+            CONF_REPO_URL: "https://example.com/x/y.git",
+            CONF_BRANCH: "main",
+        },
+        source="user",
+        options={},
+        unique_id="y#main",
+        discovery_keys=None,
+        subentries_data=None,
+    )
+    assert GroceryCoordinator(hass, entry).sync_enabled is True
+
+
+async def test_local_setup_loads_and_sets_local_state(
+    local_coordinator: GroceryCoordinator,
+):
+    """async_setup in local mode makes the work dir, loads state, no timers."""
+    await local_coordinator.async_setup()
+    assert local_coordinator.sync_state == SYNC_LOCAL
+    assert local_coordinator._backend is None
+    assert local_coordinator._pull_unsub is None
+    assert local_coordinator._push_unsub is None
+
+
+async def test_local_mutation_schedules_local_write_not_push(
+    local_coordinator: GroceryCoordinator,
+):
+    await local_coordinator.async_setup()
+    local_coordinator.async_add_item("rewe", "Milk")
+    # Local mode must NOT arm a push (no remote) and must NOT flip to PENDING.
+    assert local_coordinator._push_unsub is None
+    assert local_coordinator.sync_state == SYNC_LOCAL
+    assert local_coordinator._local_write_unsub is not None
+
+
+async def test_local_write_persists_and_reloads(
+    local_coordinator: GroceryCoordinator,
+):
+    """State written in local mode survives a fresh load from the work dir."""
+    await local_coordinator.async_setup()
+    item = local_coordinator.async_add_item("rewe", "Bread", qty_value=2, qty_unit="pcs")
+    # Flush the debounced write synchronously.
+    await local_coordinator._async_write_local_state()
+    # Reload into the in-memory model from disk and assert the item survived.
+    await local_coordinator._async_load_working_state()
+    reloaded = local_coordinator.state.lists["rewe"].items
+    assert item.id in reloaded
+    assert reloaded[item.id].name == "Bread"
+
+
+async def test_local_write_prunes_deleted_list_file(
+    local_coordinator: GroceryCoordinator,
+):
+    """Deleting a list removes its markdown file on the next local write."""
+    import os
+
+    await local_coordinator.async_setup()
+    local_coordinator.async_create_list("Trip")
+    local_coordinator.async_add_item("trip", "Water")
+    await local_coordinator._async_write_local_state()
+    md_path = os.path.join(local_coordinator._work_dir, "lists", "trip.md")
+    assert os.path.isfile(md_path)
+    local_coordinator.async_delete_list("trip")
+    await local_coordinator._async_write_local_state()
+    assert not os.path.isfile(md_path)
+
+
+async def test_local_shutdown_flushes_write(
+    local_coordinator: GroceryCoordinator,
+):
+    import os
+
+    await local_coordinator.async_setup()
+    item = local_coordinator.async_add_item("rewe", "Eggs")
+    # Shutdown should flush pending local write even before the debounce fires.
+    await local_coordinator.async_shutdown()
+    md_path = os.path.join(local_coordinator._work_dir, "lists", "rewe.md")
+    assert os.path.isfile(md_path)
+    assert local_coordinator._local_write_unsub is None

@@ -42,6 +42,7 @@ from .const import (
     CONF_REPO_URL,
     CONF_SSH_KEY,
     CONF_SSH_KEY_PATH,
+    CONF_SYNC_ENABLED,
     DEFAULT_ARCHIVE_RETENTION,
     DEFAULT_BRANCH,
     DEFAULT_PULL_INTERVAL,
@@ -103,6 +104,52 @@ class GroceryListConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
+        """First step: choose local-only or git-synced operation.
+
+        Sync is optional (some users just want a local shared list on one HA
+        instance). We branch to a lightweight identity-only step for local mode
+        or the full repo/credentials step for git mode.
+        """
+        return self.async_show_menu(
+            step_id="user",
+            menu_options=["local", "git"],
+        )
+
+    async def async_step_local(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Configure a local-only instance (no git remote)."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            identity = user_input[CONF_IDENTITY].strip()
+            if not identity:
+                errors["base"] = "identity_required"
+            else:
+                await self.async_set_unique_id(f"local#{identity}")
+                self._abort_if_unique_id_configured()
+                return self.async_create_entry(
+                    title=identity,
+                    data={
+                        CONF_IDENTITY: identity,
+                        CONF_SYNC_ENABLED: False,
+                    },
+                )
+        return self.async_show_form(
+            step_id="local",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_IDENTITY,
+                        default=(user_input or {}).get(CONF_IDENTITY, ""),
+                    ): str,
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_git(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -138,6 +185,7 @@ class GroceryListConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         title=user_input[CONF_IDENTITY],
                         data={
                             CONF_IDENTITY: user_input[CONF_IDENTITY],
+                            CONF_SYNC_ENABLED: True,
                             CONF_AUTH_METHOD: method,
                             CONF_REPO_URL: url,
                             CONF_BRANCH: branch,
@@ -153,7 +201,7 @@ class GroceryListConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = result
 
         return self.async_show_form(
-            step_id="user",
+            step_id="git",
             data_schema=_user_schema(user_input),
             errors=errors,
         )

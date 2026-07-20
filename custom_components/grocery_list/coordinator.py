@@ -49,6 +49,7 @@ from .const import (
     CONF_REPO_URL,
     CONF_SSH_KEY,
     CONF_SSH_KEY_PATH,
+    CONF_SYNC_ENABLED,
     DEFAULT_ARCHIVE_RETENTION,
     DEFAULT_BRANCH,
     DEFAULT_PULL_INTERVAL,
@@ -57,6 +58,7 @@ from .const import (
     LIST_TOMBSTONES_FILE,
     OPLOG_FILE,
     SYNC_ERROR,
+    SYNC_LOCAL,
     SYNC_OFFLINE,
     SYNC_PENDING,
     SYNC_SYNCED,
@@ -103,9 +105,19 @@ class GroceryCoordinator:
         self._sync_lock = asyncio.Lock()
         self._push_unsub: Callable[[], None] | None = None
         self._pull_unsub: Callable[[], None] | None = None
+        self._local_write_unsub: Callable[[], None] | None = None
         self._listeners: list[Callable[[], None]] = []
 
     # -- option helpers -----------------------------------------------------
+
+    @property
+    def sync_enabled(self) -> bool:
+        """Whether this instance syncs to a git remote (vs local-only).
+
+        Defaults to True for backward compatibility with entries created
+        before local-only mode existed (they always had a git remote).
+        """
+        return self.entry.data.get(CONF_SYNC_ENABLED, True)
 
     @property
     def _push_debounce(self) -> int:
@@ -144,7 +156,16 @@ class GroceryCoordinator:
         )
 
     async def async_setup(self) -> None:
-        """Clone-or-open the repo, load state, and start timers (PLAN §5)."""
+        """Clone-or-open the repo, load state, and start timers (PLAN §5).
+
+        In local-only mode there is no git remote: we ensure the work dir
+        exists, load any previously-persisted state files, purge archives, and
+        return without a backend or sync timers.
+        """
+        if not self.sync_enabled:
+            await self._async_setup_local()
+            return
+
         stored = await self._store.async_load()
         if stored:
             self.last_synced_commit = stored.get("last_synced_commit")
@@ -186,14 +207,34 @@ class GroceryCoordinator:
             _as_timedelta(self._pull_interval),
         )
 
+    async def _async_setup_local(self) -> None:
+        """Set up a local-only instance: load persisted files, no git/timers."""
+        import os
+
+        def _ensure_dir() -> None:
+            os.makedirs(self._work_dir, exist_ok=True)
+
+        await self.hass.async_add_executor_job(_ensure_dir)
+        await self._async_load_working_state()
+        self.async_purge_archives()
+        self.sync_state = SYNC_LOCAL
+        self._notify()
+
     async def async_shutdown(self) -> None:
-        """Cancel timers and flush a final push if changes are pending."""
+        """Cancel timers and flush a final push/write if changes are pending."""
         if self._pull_unsub is not None:
             self._pull_unsub()
             self._pull_unsub = None
         if self._push_unsub is not None:
             self._push_unsub()
             self._push_unsub = None
+        if not self.sync_enabled:
+            # Flush any debounced local write so nothing is lost on restart.
+            if self._local_write_unsub is not None:
+                self._local_write_unsub()
+                self._local_write_unsub = None
+            await self._async_write_local_state()
+            return
         if self.sync_state == SYNC_PENDING:
             await self.async_sync()
 
@@ -260,9 +301,61 @@ class GroceryCoordinator:
     async def _handle_debounced_push(self, _now) -> None:
         self._push_unsub = None
         await self.async_sync()
-
     async def _handle_scheduled_pull(self, _now) -> None:
         await self.async_sync()
+
+    # -- local-only persistence --------------------------------------------
+
+    @callback
+    def _schedule_local_write(self) -> None:
+        """(Re)arm a short debounce to persist state to disk (local mode).
+
+        Mirrors :meth:`_schedule_push` but there is no remote; we simply
+        serialize the model to plain files in the work dir so it survives a
+        restart. A short 2s debounce coalesces bursts of edits.
+        """
+        if self._local_write_unsub is not None:
+            self._local_write_unsub()
+        self._local_write_unsub = async_call_later(
+            self.hass, 2, self._handle_local_write
+        )
+
+    async def _handle_local_write(self, _now) -> None:
+        self._local_write_unsub = None
+        await self._async_write_local_state()
+
+    async def _async_write_local_state(self) -> None:
+        """Serialize the model to the work dir and prune stale files.
+
+        Writes the same file layout as the git working tree
+        (``RepoState.to_files``) so local and synced modes share the exact
+        same on-disk format and the same loader (``_async_load_working_state``).
+        Files no longer present in the model are removed so deletions persist.
+        """
+        files = self.state.to_files()
+
+        def _write() -> None:
+            import os
+
+            wanted = set()
+            for rel, data in files.items():
+                full = os.path.join(self._work_dir, rel)
+                os.makedirs(os.path.dirname(full), exist_ok=True)
+                with open(full, "wb") as fh:
+                    fh.write(data)
+                wanted.add(os.path.normpath(full))
+            # Prune stale files under our managed subdirs.
+            for sub in ("lists", ".grocery", "archive"):
+                base = os.path.join(self._work_dir, sub)
+                if not os.path.isdir(base):
+                    continue
+                for root, _dirs, names in os.walk(base):
+                    for name in names:
+                        full = os.path.normpath(os.path.join(root, name))
+                        if full not in wanted:
+                            os.remove(full)
+
+        await self.hass.async_add_executor_job(_write)
 
     # -- the sync flow ------------------------------------------------------
 
@@ -387,10 +480,13 @@ class GroceryCoordinator:
     # -- op-log helper ------------------------------------------------------
 
     def _record_and_schedule(self, op: Op) -> None:
-        """Append an op to the shared log and arm a debounced push."""
+        """Append an op to the shared log and arm a debounced push/write."""
         self.state.oplog.append(op)
         self._notify()
-        self._schedule_push()
+        if self.sync_enabled:
+            self._schedule_push()
+        else:
+            self._schedule_local_write()
 
     # -- list/item mutations (called by websocket API) ---------------------
 

@@ -3,6 +3,24 @@
     "step": {
       "user": {
         "title": "Einkaufsliste einrichten",
+        "description": "Wählen Sie, wie diese Home-Assistant-Instanz ihre Einkaufslisten speichert.",
+        "menu_options": {
+          "local": "Nur lokal (keine Synchronisierung)",
+          "git": "Mit einem Git-Repository synchronisieren"
+        }
+      },
+      "local": {
+        "title": "Lokale Einkaufsliste",
+        "description": "Geben Sie dieser Home-Assistant-Instanz einen Namen. Ihre Listen werden lokal gespeichert und nicht mit einem Git-Repository synchronisiert.",
+        "data": {
+          "identity": "Instanzname"
+        },
+        "data_description": {
+          "identity": "Dieser Name wird bei jedem hinzugefügten Artikel gespeichert (Feld „hinzugefügt von“) und begrenzt Ihren Rückgängig-/Wiederherstellen-Verlauf."
+        }
+      },
+      "git": {
+        "title": "Einkaufsliste einrichten",
         "description": "Geben Sie dieser Home-Assistant-Instanz einen Namen und verbinden Sie sie mit Ihrem Git-Repository. Das Repository wird geklont, um die Verbindung zu prüfen; die Einrichtung wird nur abgeschlossen, wenn das Klonen erfolgreich ist.",
         "data": {
           "identity": "Instanzname",
@@ -27,7 +45,8 @@
       "clone_failed": "Repository konnte nicht geklont werden. Prüfen Sie URL und Zugangsdaten.",
       "auth_failed": "Authentifizierung fehlgeschlagen. Prüfen Sie Ihren SSH-Schlüssel oder Ihr Zugriffstoken.",
       "invalid_url": "Die Repository-URL ist für die gewählte Authentifizierungsmethode ungültig.",
-      "key_read_failed": "Die SSH-Schlüsseldatei konnte unter dem angegebenen Pfad nicht gelesen werden."
+      "key_read_failed": "Die SSH-Schlüsseldatei konnte unter dem angegebenen Pfad nicht gelesen werden.",
+      "identity_required": "Bitte geben Sie einen Instanznamen ein."
     },
     "abort": {
       "already_configured": "Dieses Repository ist bereits konfiguriert."

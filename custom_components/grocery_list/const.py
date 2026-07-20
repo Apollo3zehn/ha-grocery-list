@@ -12,6 +12,10 @@ CONF_SSH_KEY = "ssh_key"
 CONF_SSH_KEY_PATH = "ssh_key_path"
 CONF_HTTPS_TOKEN = "https_token"
 CONF_BRANCH = "branch"
+# Whether this instance syncs to a git remote. When False the integration runs
+# fully local (no clone, no timers, no push/pull); state is persisted to the
+# work_dir as plain files so it survives restarts.
+CONF_SYNC_ENABLED = "sync_enabled"
 
 # Auth methods
 AUTH_SSH = "ssh"
@@ -48,6 +52,8 @@ SYNC_PENDING = "pending"
 SYNC_SYNCING = "syncing"
 SYNC_OFFLINE = "offline"
 SYNC_ERROR = "error"
+# Local-only mode (no git remote configured); state persists to disk only.
+SYNC_LOCAL = "local"
 
 # Storage
 STORAGE_VERSION = 1
