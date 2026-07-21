@@ -447,7 +447,7 @@ export const cardStyles = css`
     font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
-    background: var(--gl-primary);
+    background: var(--gl-accent);
     color: #fff;
     line-height: 1.4;
     min-width: 72px;
@@ -460,11 +460,11 @@ export const cardStyles = css`
     color: var(--gl-text);
   }
   .gl-btn-primary {
-    background: var(--gl-primary);
+    background: var(--gl-accent);
     color: #fff;
   }
   .gl-btn-danger {
-    background: var(--gl-danger);
+    background: var(--error-color, #db4437);
     color: #fff;
   }
 `;
