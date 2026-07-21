@@ -21,8 +21,9 @@ def test_roundtrip_only_list_files():
     )
     rs = RepoState(lists={"rewe": state})
 
+    # Default (no configured path) stores list files at the repo root.
     files = rs.to_files()
-    assert set(files) == {"lists/rewe.md"}
+    assert set(files) == {"rewe.md"}
     # No sync metadata files whatsoever.
     assert not any(p.startswith(".grocery/") for p in files)
 
@@ -33,14 +34,38 @@ def test_roundtrip_only_list_files():
     assert {it.key for it in r.items} == {"Vegetables|Tomatoes", "|Milk"}
 
 
+def test_roundtrip_with_configured_lists_path():
+    state = _list("rewe", "Rewe", Item(name="Milk"))
+    rs = RepoState(lists={"rewe": state})
+
+    files = rs.to_files("home/groceries")
+    assert set(files) == {"home/groceries/rewe.md"}
+
+    # Wrong/empty prefix must not pick the file up; correct prefix must.
+    assert RepoState.from_files(files).lists == {}
+    assert RepoState.from_files(files, "home/groceries").lists.keys() == {
+        "rewe"
+    }
+
+
+def test_lists_path_normalizes_slashes():
+    rs = RepoState(lists={"a": _list("a", "A", Item(name="X"))})
+    # Leading/trailing slashes are equivalent to the clean relative form.
+    assert set(rs.to_files("/foo/bar/")) == {"foo/bar/a.md"}
+    files = {"foo/bar/a.md": b"# A\n"}
+    assert RepoState.from_files(files, "foo/bar").lists.keys() == {"a"}
+
+
 def test_from_files_empty():
     assert RepoState.from_files({}).lists == {}
 
 
 def test_from_files_ignores_non_list_paths():
+    # Default (root) layout: only top-level ``*.md`` files are lists. Nested
+    # markdown and non-markdown files are ignored.
     files = {
-        "lists/rewe.md": b"# Rewe\n\n- [ ] Milk\n",
-        "README.md": b"# not a list\n",
+        "rewe.md": b"# Rewe\n\n- [ ] Milk\n",
+        "docs/README.md": b"# not a list\n",
         ".grocery/whatever.json": b"{}",
     }
     rs = RepoState.from_files(files)
@@ -48,7 +73,7 @@ def test_from_files_ignores_non_list_paths():
 
 
 def test_slug_comes_from_filename_not_title():
-    files = {"lists/my-store.md": b"# Totally Different Title\n"}
+    files = {"my-store.md": b"# Totally Different Title\n"}
     rs = RepoState.from_files(files)
     assert "my-store" in rs.lists
     assert rs.lists["my-store"].title == "Totally Different Title"

@@ -27,6 +27,7 @@
           "auth_method": "Authentifizierungsmethode",
           "repo_url": "Repository-URL",
           "branch": "Branch",
+          "lists_path": "Listenpfad (optional)",
           "ssh_key": "Privater SSH-Schlüssel",
           "ssh_key_path": "Pfad zur privaten SSH-Schlüsseldatei",
           "https_token": "Zugriffstoken (optional)"
@@ -35,6 +36,7 @@
           "identity": "Dieser Name wird bei jedem hinzugefügten Artikel gespeichert (Feld „hinzugefügt von“) und begrenzt Ihren Rückgängig-/Wiederherstellen-Verlauf.",
           "auth_method": "Wählen Sie SSH (empfohlen: ein repo-spezifischer Deploy-Key) oder HTTPS (ein repo-spezifisches Zugriffstoken).",
           "repo_url": "Für SSH: git@host:besitzer/repo.git. Für HTTPS: https://host/besitzer/repo.git.",
+          "lists_path": "Relativer Ordner im Repository, in dem die Listendateien gespeichert werden, z. B. Pfad/zu/den/Einkaufslisten. Leer lassen, um sie im Repository-Stammverzeichnis zu speichern.",
           "ssh_key": "Fügen Sie den privaten Schlüssel ein oder lassen Sie das Feld leer und geben Sie unten einen Dateipfad an.",
           "ssh_key_path": "Pfad zu einer eingebundenen privaten Schlüsseldatei (Berechtigungen 600). Bevorzugt, damit der Schlüssel nicht in Home Assistant gespeichert wird.",
           "https_token": "Repo-spezifisches, fein granuliertes Token. Für öffentliche Repositories leer lassen."
@@ -59,9 +61,22 @@
         "data": {
           "push_debounce_seconds": "Push-Verzögerung nach letzter Änderung (Sekunden)",
           "pull_interval_seconds": "Pull-Intervall (Sekunden)",
-          "archive_retention_days": "Archiv-Aufbewahrung (Tage)"
+          "archive_retention_days": "Archiv-Aufbewahrung (Tage)",
+          "ssh_key": "Neuer privater SSH-Schlüssel",
+          "ssh_key_path": "Neuer Dateipfad des privaten SSH-Schlüssels",
+          "https_token": "Neues Zugriffstoken"
+        },
+        "description": "Git-Arbeitsverzeichnis (schreibgeschützt): {git_work_dir}\nBasis-Pfad der Listen im Repo (schreibgeschützt): {lists_base_path}\n\nLassen Sie die Anmeldedaten-Felder leer, um die aktuellen Werte beizubehalten.",
+        "data_description": {
+          "ssh_key": "Fügen Sie einen neuen privaten Schlüssel ein, um den gespeicherten zu ersetzen. Leer lassen, um den aktuellen Schlüssel beizubehalten.",
+          "ssh_key_path": "Pfad zu einer eingebundenen privaten Schlüsseldatei (Berechtigungen 600). Leer lassen, um den aktuellen Pfad beizubehalten.",
+          "https_token": "Repo-spezifisches, fein abgestuftes Token. Leer lassen, um das aktuelle Token beizubehalten."
         }
       }
+    },
+    "error": {
+      "clone_failed": "Repository konnte nicht geklont werden. Überprüfen Sie URL und Anmeldedaten.",
+      "auth_failed": "Authentifizierung fehlgeschlagen. Überprüfen Sie Ihren SSH-Schlüssel oder Ihr Zugriffstoken."
     }
   }
 }

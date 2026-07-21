@@ -2,66 +2,81 @@
   "config": {
     "step": {
       "user": {
-        "title": "Konfigurera ink\u00f6pslista",
-        "description": "V\u00e4lj hur denna Home Assistant-instans lagrar sina ink\u00f6pslistor.",
+        "title": "Konfigurera inköpslista",
+        "description": "Välj hur denna Home Assistant-instans lagrar sina inköpslistor.",
         "menu_options": {
           "local": "Endast lokalt (ingen synkronisering)",
           "git": "Synkronisera med ett git-arkiv"
         }
       },
       "local": {
-        "title": "Lokal ink\u00f6pslista",
-        "description": "Ge denna Home Assistant-instans ett namn. Dina listor lagras lokalt och synkroniseras inte med n\u00e5got git-arkiv.",
+        "title": "Lokal inköpslista",
+        "description": "Ge denna Home Assistant-instans ett namn. Dina listor lagras lokalt och synkroniseras inte med något git-arkiv.",
         "data": {
           "identity": "Instansnamn"
         },
         "data_description": {
-          "identity": "Detta namn sparas med varje artikel du l\u00e4gger till (f\u00e4ltet \u201etillagd av\u201d) och avgr\u00e4nsar din \u00e5ngra/g\u00f6r om-historik."
+          "identity": "Detta namn sparas med varje artikel du lägger till (fältet „tillagd av”) och avgränsar din ångra/gör om-historik."
         }
       },
       "git": {
-        "title": "Konfigurera ink\u00f6pslista",
-        "description": "Ge denna Home Assistant-instans ett namn och anslut den till ditt git-arkiv. Arkivet klonas f\u00f6r att validera anslutningen; konfigurationen slutf\u00f6rs endast om kloningen lyckas.",
+        "title": "Konfigurera inköpslista",
+        "description": "Ge denna Home Assistant-instans ett namn och anslut den till ditt git-arkiv. Arkivet klonas för att validera anslutningen; konfigurationen slutförs endast om kloningen lyckas.",
         "data": {
           "identity": "Instansnamn",
           "auth_method": "Autentiseringsmetod",
           "repo_url": "Arkivets URL",
           "branch": "Gren",
+          "lists_path": "Listsökväg (valfritt)",
           "ssh_key": "Privat SSH-nyckel",
-          "ssh_key_path": "S\u00f6kv\u00e4g till privat SSH-nyckelfil",
-          "https_token": "\u00c5tkomsttoken (valfritt)"
+          "ssh_key_path": "Sökväg till privat SSH-nyckelfil",
+          "https_token": "Åtkomsttoken (valfritt)"
         },
         "data_description": {
-          "identity": "Detta namn sparas med varje artikel du l\u00e4gger till (f\u00e4ltet \u201etillagd av\u201d) och avgr\u00e4nsar din \u00e5ngra/g\u00f6r om-historik.",
-          "auth_method": "V\u00e4lj SSH (rekommenderas: en arkivbegr\u00e4nsad distributionsnyckel) eller HTTPS (en arkivbegr\u00e4nsad \u00e5tkomsttoken).",
-          "repo_url": "F\u00f6r SSH anv\u00e4nd git@host:agare/repo.git. F\u00f6r HTTPS anv\u00e4nd https://host/agare/repo.git.",
-          "ssh_key": "Klistra in den privata nyckeln, eller l\u00e4mna tomt och ange en fils\u00f6kv\u00e4g nedan.",
-          "ssh_key_path": "S\u00f6kv\u00e4g till en monterad privat nyckelfil (beh\u00f6righeter 600). F\u00f6redras s\u00e5 att nyckeln inte lagras i Home Assistant.",
-          "https_token": "Token begr\u00e4nsad till arkivet. L\u00e4mna tomt f\u00f6r offentliga arkiv."
+          "identity": "Detta namn sparas med varje artikel du lägger till (fältet „tillagd av”) och avgränsar din ångra/gör om-historik.",
+          "auth_method": "Välj SSH (rekommenderas: en arkivbegränsad distributionsnyckel) eller HTTPS (en arkivbegränsad åtkomsttoken).",
+          "repo_url": "För SSH använd git@host:agare/repo.git. För HTTPS använd https://host/agare/repo.git.",
+          "lists_path": "Relativ mapp i arkivet där listfilerna lagras, t.ex. sökväg/till/inköpslistor. Lämna tomt för att lagra dem i arkivets rot.",
+          "ssh_key": "Klistra in den privata nyckeln, eller lämna tomt och ange en filsökväg nedan.",
+          "ssh_key_path": "Sökväg till en monterad privat nyckelfil (behörigheter 600). Föredras så att nyckeln inte lagras i Home Assistant.",
+          "https_token": "Token begränsad till arkivet. Lämna tomt för offentliga arkiv."
         }
       }
     },
     "error": {
       "clone_failed": "Kunde inte klona arkivet. Kontrollera URL och autentiseringsuppgifter.",
-      "auth_failed": "Autentiseringen misslyckades. Kontrollera din SSH-nyckel eller \u00e5tkomsttoken.",
-      "invalid_url": "Arkivets URL \u00e4r inte giltig f\u00f6r den valda autentiseringsmetoden.",
-      "key_read_failed": "Kunde inte l\u00e4sa SSH-nyckelfilen p\u00e5 den angivna s\u00f6kv\u00e4gen.",
+      "auth_failed": "Autentiseringen misslyckades. Kontrollera din SSH-nyckel eller åtkomsttoken.",
+      "invalid_url": "Arkivets URL är inte giltig för den valda autentiseringsmetoden.",
+      "key_read_failed": "Kunde inte läsa SSH-nyckelfilen på den angivna sökvägen.",
       "identity_required": "Ange ett instansnamn."
     },
     "abort": {
-      "already_configured": "Detta arkiv \u00e4r redan konfigurerat."
+      "already_configured": "Detta arkiv är redan konfigurerat."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Alternativ f\u00f6r ink\u00f6pslista",
+        "title": "Alternativ för inköpslista",
         "data": {
-          "push_debounce_seconds": "Push-f\u00f6rdr\u00f6jning efter senaste \u00e4ndring (sekunder)",
-          "pull_interval_seconds": "H\u00e4mtningsintervall (sekunder)",
-          "archive_retention_days": "Arkivbevarande (dagar)"
+          "push_debounce_seconds": "Push-fördröjning efter senaste ändring (sekunder)",
+          "pull_interval_seconds": "Hämtningsintervall (sekunder)",
+          "archive_retention_days": "Arkivbevarande (dagar)",
+          "ssh_key": "Ny privat SSH-nyckel",
+          "ssh_key_path": "Ny sökväg till privat SSH-nyckelfil",
+          "https_token": "Ny åtkomsttoken"
+        },
+        "description": "Git-arbetskatalog (skrivskyddad): {git_work_dir}\nListornas bassökväg i repot (skrivskyddad): {lists_base_path}\n\nLämna inloggningsfälten tomma för att behålla nuvarande värden.",
+        "data_description": {
+          "ssh_key": "Klistra in en ny privat nyckel för att ersätta den lagrade. Lämna tomt för att behålla nuvarande nyckel.",
+          "ssh_key_path": "Sökväg till en monterad privat nyckelfil (behörigheter 600). Lämna tomt för att behålla nuvarande sökväg.",
+          "https_token": "Token med repo-begränsad omfattning. Lämna tomt för att behålla nuvarande token."
         }
       }
+    },
+    "error": {
+      "clone_failed": "Kunde inte klona repot. Kontrollera URL och inloggningsuppgifter.",
+      "auth_failed": "Autentisering misslyckades. Kontrollera din SSH-nyckel eller åtkomsttoken."
     }
   }
 }

@@ -16,27 +16,29 @@
           "identity": "Nome dell'istanza"
         },
         "data_description": {
-          "identity": "Questo nome viene salvato con ogni articolo che aggiungi (campo \u00abaggiunto da\u00bb) e delimita la cronologia di annulla/ripeti."
+          "identity": "Questo nome viene salvato con ogni articolo che aggiungi (campo «aggiunto da») e delimita la cronologia di annulla/ripeti."
         }
       },
       "git": {
         "title": "Configurazione della lista della spesa",
-        "description": "Assegna un nome a questa istanza di Home Assistant e collegala al tuo repository git. Il repository verr\u00e0 clonato per verificare la connessione; la configurazione si completa solo se la clonazione riesce.",
+        "description": "Assegna un nome a questa istanza di Home Assistant e collegala al tuo repository git. Il repository verrà clonato per verificare la connessione; la configurazione si completa solo se la clonazione riesce.",
         "data": {
           "identity": "Nome dell'istanza",
           "auth_method": "Metodo di autenticazione",
           "repo_url": "URL del repository",
           "branch": "Ramo",
+          "lists_path": "Percorso delle liste (opzionale)",
           "ssh_key": "Chiave privata SSH",
           "ssh_key_path": "Percorso del file della chiave privata SSH",
           "https_token": "Token di accesso (opzionale)"
         },
         "data_description": {
-          "identity": "Questo nome viene salvato con ogni articolo che aggiungi (campo \u00abaggiunto da\u00bb) e delimita la cronologia di annulla/ripeti.",
+          "identity": "Questo nome viene salvato con ogni articolo che aggiungi (campo «aggiunto da») e delimita la cronologia di annulla/ripeti.",
           "auth_method": "Scegli SSH (consigliato: una chiave di deploy limitata al repository) o HTTPS (un token di accesso limitato al repository).",
           "repo_url": "Per SSH usa git@host:proprietario/repo.git. Per HTTPS usa https://host/proprietario/repo.git.",
+          "lists_path": "Cartella relativa nel repository in cui sono memorizzati i file delle liste, ad es. percorso/alle-liste-della-spesa. Lascia vuoto per memorizzarli nella radice del repository.",
           "ssh_key": "Incolla la chiave privata oppure lascia vuoto e indica un percorso file qui sotto.",
-          "ssh_key_path": "Percorso di un file di chiave privata montato (permessi 600). Preferito affinch\u00e9 la chiave non venga memorizzata in Home Assistant.",
+          "ssh_key_path": "Percorso di un file di chiave privata montato (permessi 600). Preferito affinché la chiave non venga memorizzata in Home Assistant.",
           "https_token": "Token con ambito limitato al repository. Lascia vuoto per repository pubblici."
         }
       }
@@ -44,12 +46,12 @@
     "error": {
       "clone_failed": "Impossibile clonare il repository. Controlla l'URL e le credenziali.",
       "auth_failed": "Autenticazione non riuscita. Controlla la tua chiave SSH o il token di accesso.",
-      "invalid_url": "L'URL del repository non \u00e8 valido per il metodo di autenticazione selezionato.",
+      "invalid_url": "L'URL del repository non è valido per il metodo di autenticazione selezionato.",
       "key_read_failed": "Impossibile leggere il file della chiave SSH nel percorso indicato.",
       "identity_required": "Inserisci un nome per l'istanza."
     },
     "abort": {
-      "already_configured": "Questo repository \u00e8 gi\u00e0 configurato."
+      "already_configured": "Questo repository è già configurato."
     }
   },
   "options": {
@@ -59,9 +61,22 @@
         "data": {
           "push_debounce_seconds": "Ritardo di invio dopo l'ultima modifica (secondi)",
           "pull_interval_seconds": "Intervallo di recupero (secondi)",
-          "archive_retention_days": "Conservazione dell'archivio (giorni)"
+          "archive_retention_days": "Conservazione dell'archivio (giorni)",
+          "ssh_key": "Nuova chiave privata SSH",
+          "ssh_key_path": "Nuovo percorso del file della chiave privata SSH",
+          "https_token": "Nuovo token di accesso"
+        },
+        "description": "Directory di lavoro git (sola lettura): {git_work_dir}\nPercorso base delle liste nel repository (sola lettura): {lists_base_path}\n\nLascia vuoti i campi delle credenziali per mantenere i valori attuali.",
+        "data_description": {
+          "ssh_key": "Incolla una nuova chiave privata per sostituire quella memorizzata. Lascia vuoto per mantenere la chiave attuale.",
+          "ssh_key_path": "Percorso di un file di chiave privata montato (permessi 600). Lascia vuoto per mantenere il percorso attuale.",
+          "https_token": "Token con ambito limitato al repository. Lascia vuoto per mantenere il token attuale."
         }
       }
+    },
+    "error": {
+      "clone_failed": "Impossibile clonare il repository. Controlla l'URL e le credenziali.",
+      "auth_failed": "Autenticazione non riuscita. Controlla la chiave SSH o il token di accesso."
     }
   }
 }

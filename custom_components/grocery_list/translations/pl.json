@@ -2,66 +2,81 @@
   "config": {
     "step": {
       "user": {
-        "title": "Konfiguracja listy zakup\u00f3w",
-        "description": "Wybierz, jak ta instancja Home Assistant przechowuje swoje listy zakup\u00f3w.",
+        "title": "Konfiguracja listy zakupów",
+        "description": "Wybierz, jak ta instancja Home Assistant przechowuje swoje listy zakupów.",
         "menu_options": {
           "local": "Tylko lokalnie (bez synchronizacji)",
           "git": "Synchronizuj z repozytorium git"
         }
       },
       "local": {
-        "title": "Lokalna lista zakup\u00f3w",
-        "description": "Nadaj nazw\u0119 tej instancji Home Assistant. Twoje listy s\u0105 przechowywane lokalnie i nie s\u0105 synchronizowane z \u017cadnym repozytorium git.",
+        "title": "Lokalna lista zakupów",
+        "description": "Nadaj nazwę tej instancji Home Assistant. Twoje listy są przechowywane lokalnie i nie są synchronizowane z żadnym repozytorium git.",
         "data": {
           "identity": "Nazwa instancji"
         },
         "data_description": {
-          "identity": "Ta nazwa jest zapisywana przy ka\u017cdym dodanym artykule (pole \u201edodane przez\u201d) i ogranicza zakres historii cofania/ponawiania."
+          "identity": "Ta nazwa jest zapisywana przy każdym dodanym artykule (pole „dodane przez”) i ogranicza zakres historii cofania/ponawiania."
         }
       },
       "git": {
-        "title": "Konfiguracja listy zakup\u00f3w",
-        "description": "Nadaj nazw\u0119 tej instancji Home Assistant i po\u0142\u0105cz j\u0105 ze swoim repozytorium git. Repozytorium zostanie sklonowane w celu sprawdzenia po\u0142\u0105czenia; konfiguracja zako\u0144czy si\u0119 tylko wtedy, gdy klonowanie si\u0119 powiedzie.",
+        "title": "Konfiguracja listy zakupów",
+        "description": "Nadaj nazwę tej instancji Home Assistant i połącz ją ze swoim repozytorium git. Repozytorium zostanie sklonowane w celu sprawdzenia połączenia; konfiguracja zakończy się tylko wtedy, gdy klonowanie się powiedzie.",
         "data": {
           "identity": "Nazwa instancji",
           "auth_method": "Metoda uwierzytelniania",
           "repo_url": "Adres URL repozytorium",
-          "branch": "Ga\u0142\u0105\u017a",
+          "branch": "Gałąź",
+          "lists_path": "Ścieżka list (opcjonalnie)",
           "ssh_key": "Prywatny klucz SSH",
-          "ssh_key_path": "\u015acie\u017cka pliku prywatnego klucza SSH",
-          "https_token": "Token dost\u0119pu (opcjonalny)"
+          "ssh_key_path": "Ścieżka pliku prywatnego klucza SSH",
+          "https_token": "Token dostępu (opcjonalny)"
         },
         "data_description": {
-          "identity": "Ta nazwa jest zapisywana przy ka\u017cdym dodanym artykule (pole \u201edodane przez\u201d) i ogranicza zakres historii cofania/ponawiania.",
-          "auth_method": "Wybierz SSH (zalecane: klucz wdro\u017ceniowy ograniczony do repozytorium) lub HTTPS (token dost\u0119pu ograniczony do repozytorium).",
-          "repo_url": "Dla SSH u\u017cyj git@host:wlasciciel/repo.git. Dla HTTPS u\u017cyj https://host/wlasciciel/repo.git.",
-          "ssh_key": "Wklej klucz prywatny lub pozostaw puste i podaj poni\u017cej \u015bcie\u017ck\u0119 pliku.",
-          "ssh_key_path": "\u015acie\u017cka do zamontowanego pliku klucza prywatnego (uprawnienia 600). Zalecane, aby klucz nie by\u0142 przechowywany w Home Assistant.",
-          "https_token": "Token ograniczony do repozytorium. Pozostaw puste dla repozytori\u00f3w publicznych."
+          "identity": "Ta nazwa jest zapisywana przy każdym dodanym artykule (pole „dodane przez”) i ogranicza zakres historii cofania/ponawiania.",
+          "auth_method": "Wybierz SSH (zalecane: klucz wdrożeniowy ograniczony do repozytorium) lub HTTPS (token dostępu ograniczony do repozytorium).",
+          "repo_url": "Dla SSH użyj git@host:wlasciciel/repo.git. Dla HTTPS użyj https://host/wlasciciel/repo.git.",
+          "lists_path": "Względny folder w repozytorium, w którym przechowywane są pliki list, np. sciezka/do/list-zakupow. Pozostaw puste, aby przechowywać je w katalogu głównym repozytorium.",
+          "ssh_key": "Wklej klucz prywatny lub pozostaw puste i podaj poniżej ścieżkę pliku.",
+          "ssh_key_path": "Ścieżka do zamontowanego pliku klucza prywatnego (uprawnienia 600). Zalecane, aby klucz nie był przechowywany w Home Assistant.",
+          "https_token": "Token ograniczony do repozytorium. Pozostaw puste dla repozytoriów publicznych."
         }
       }
     },
     "error": {
-      "clone_failed": "Nie mo\u017cna sklonowa\u0107 repozytorium. Sprawd\u017a adres URL i dane uwierzytelniaj\u0105ce.",
-      "auth_failed": "Uwierzytelnianie nie powiod\u0142o si\u0119. Sprawd\u017a sw\u00f3j klucz SSH lub token dost\u0119pu.",
-      "invalid_url": "Adres URL repozytorium jest nieprawid\u0142owy dla wybranej metody uwierzytelniania.",
-      "key_read_failed": "Nie mo\u017cna odczyta\u0107 pliku klucza SSH pod podan\u0105 \u015bcie\u017ck\u0105.",
-      "identity_required": "Wprowad\u017a nazw\u0119 instancji."
+      "clone_failed": "Nie można sklonować repozytorium. Sprawdź adres URL i dane uwierzytelniające.",
+      "auth_failed": "Uwierzytelnianie nie powiodło się. Sprawdź swój klucz SSH lub token dostępu.",
+      "invalid_url": "Adres URL repozytorium jest nieprawidłowy dla wybranej metody uwierzytelniania.",
+      "key_read_failed": "Nie można odczytać pliku klucza SSH pod podaną ścieżką.",
+      "identity_required": "Wprowadź nazwę instancji."
     },
     "abort": {
-      "already_configured": "To repozytorium jest ju\u017c skonfigurowane."
+      "already_configured": "To repozytorium jest już skonfigurowane."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Opcje listy zakup\u00f3w",
+        "title": "Opcje listy zakupów",
         "data": {
-          "push_debounce_seconds": "Op\u00f3\u017anienie wysy\u0142ki po ostatniej zmianie (sekundy)",
-          "pull_interval_seconds": "Interwa\u0142 pobierania (sekundy)",
-          "archive_retention_days": "Przechowywanie archiwum (dni)"
+          "push_debounce_seconds": "Opóźnienie wysyłki po ostatniej zmianie (sekundy)",
+          "pull_interval_seconds": "Interwał pobierania (sekundy)",
+          "archive_retention_days": "Przechowywanie archiwum (dni)",
+          "ssh_key": "Nowy prywatny klucz SSH",
+          "ssh_key_path": "Nowa ścieżka pliku prywatnego klucza SSH",
+          "https_token": "Nowy token dostępu"
+        },
+        "description": "Katalog roboczy git (tylko do odczytu): {git_work_dir}\nBazowa ścieżka list w repozytorium (tylko do odczytu): {lists_base_path}\n\nPozostaw pola poświadczeń puste, aby zachować bieżące wartości.",
+        "data_description": {
+          "ssh_key": "Wklej nowy klucz prywatny, aby zastąpić zapisany. Pozostaw puste, aby zachować bieżący klucz.",
+          "ssh_key_path": "Ścieżka do zamontowanego pliku klucza prywatnego (uprawnienia 600). Pozostaw puste, aby zachować bieżącą ścieżkę.",
+          "https_token": "Token o zakresie ograniczonym do repozytorium. Pozostaw puste, aby zachować bieżący token."
         }
       }
+    },
+    "error": {
+      "clone_failed": "Nie można sklonować repozytorium. Sprawdź adres URL i poświadczenia.",
+      "auth_failed": "Uwierzytelnianie nie powiodło się. Sprawdź klucz SSH lub token dostępu."
     }
   }
 }

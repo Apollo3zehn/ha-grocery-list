@@ -43,6 +43,7 @@ from .const import (
     CONF_BRANCH,
     CONF_HTTPS_TOKEN,
     CONF_IDENTITY,
+    CONF_LISTS_PATH,
     CONF_PULL_INTERVAL,
     CONF_PUSH_DEBOUNCE,
     CONF_REPO_URL,
@@ -122,6 +123,11 @@ class GroceryCoordinator:
     def sync_enabled(self) -> bool:
         """Whether this instance syncs to a git remote (vs local-only)."""
         return self.entry.data.get(CONF_SYNC_ENABLED, True)
+
+    @property
+    def _lists_path(self) -> str:
+        """Configured repo-relative dir for list files (empty = repo root)."""
+        return (self.entry.data.get(CONF_LISTS_PATH) or "").strip().strip("/")
 
     @property
     def _push_debounce(self) -> int:
@@ -246,25 +252,35 @@ class GroceryCoordinator:
     # -- state loading ------------------------------------------------------
 
     async def _async_load_working_state(self) -> None:
-        """Load the working-tree ``lists/`` files into an in-memory RepoState."""
+        """Load the working-tree list files into an in-memory RepoState.
+
+        Reads every ``*.md`` under the configured lists dir (the repo root when
+        no lists path is configured) so the model reflects what git holds.
+        """
+        lists_path = self._lists_path
 
         def _read_all() -> dict[str, bytes]:
             import os
 
             files: dict[str, bytes] = {}
-            base = os.path.join(self._work_dir, "lists")
+            base = (
+                os.path.join(self._work_dir, lists_path)
+                if lists_path
+                else self._work_dir
+            )
             if not os.path.isdir(base):
                 return files
-            for root, _dirs, names in os.walk(base):
-                for name in names:
-                    full = os.path.join(root, name)
-                    rel = os.path.relpath(full, self._work_dir)
-                    with open(full, "rb") as fh:
-                        files[rel.replace(os.sep, "/")] = fh.read()
+            for name in os.listdir(base):
+                full = os.path.join(base, name)
+                if not os.path.isfile(full) or not name.endswith(".md"):
+                    continue
+                rel = os.path.relpath(full, self._work_dir)
+                with open(full, "rb") as fh:
+                    files[rel.replace(os.sep, "/")] = fh.read()
             return files
 
         files = await self.hass.async_add_executor_job(_read_all)
-        self.state = RepoState.from_files(files)
+        self.state = RepoState.from_files(files, lists_path)
 
     async def _async_load_archive(self) -> None:
         """Load the archive of cleared items from its HA Store."""
@@ -334,8 +350,9 @@ class GroceryCoordinator:
         await self._async_write_local_state()
 
     async def _async_write_local_state(self) -> None:
-        """Serialize the model to the work dir and prune stale files."""
-        files = self.state.to_files()
+        """Serialize the model to the work dir and prune stale list files."""
+        lists_path = self._lists_path
+        files = self.state.to_files(lists_path)
 
         def _write() -> None:
             import os
@@ -347,13 +364,22 @@ class GroceryCoordinator:
                 with open(full, "wb") as fh:
                     fh.write(data)
                 wanted.add(os.path.normpath(full))
-            base = os.path.join(self._work_dir, "lists")
+            base = (
+                os.path.join(self._work_dir, lists_path)
+                if lists_path
+                else self._work_dir
+            )
             if os.path.isdir(base):
-                for root, _dirs, names in os.walk(base):
-                    for name in names:
-                        full = os.path.normpath(os.path.join(root, name))
-                        if full not in wanted:
-                            os.remove(full)
+                # Prune only stale ``*.md`` files directly in the lists dir; at
+                # the repo root this avoids touching .git or other files.
+                for name in os.listdir(base):
+                    full = os.path.normpath(os.path.join(base, name))
+                    if (
+                        os.path.isfile(full)
+                        and name.endswith(".md")
+                        and full not in wanted
+                    ):
+                        os.remove(full)
 
         await self.hass.async_add_executor_job(_write)
 
@@ -404,7 +430,7 @@ class GroceryCoordinator:
 
     async def _async_commit_working_tree(self) -> None:
         """Serialize current model to files, stage, and commit if changed."""
-        files = self.state.to_files()
+        files = self.state.to_files(self._lists_path)
         backend = self._require_backend()
 
         def _write_and_commit() -> str | None:
@@ -448,12 +474,12 @@ class GroceryCoordinator:
             _read_side, remote_sha
         )
 
-        base_state = RepoState.from_files(base_files)
-        their_state = RepoState.from_files(their_files)
+        base_state = RepoState.from_files(base_files, self._lists_path)
+        their_state = RepoState.from_files(their_files, self._lists_path)
         merged = merge_repo_states(base_state, self.state, their_state)
         self.state = merged
 
-        merged_files = merged.to_files()
+        merged_files = merged.to_files(self._lists_path)
 
         def _write_merge_commit() -> None:
             backend.write_files(merged_files)
@@ -468,7 +494,10 @@ class GroceryCoordinator:
 
     def _tracked_paths(self) -> list[str]:
         """All repo-relative paths our model serializes to (for blob reads)."""
-        return [f"lists/{slug}.md" for slug in self.state.lists]
+        prefix = self._lists_path
+        if prefix:
+            return [f"{prefix}/{slug}.md" for slug in self.state.lists]
+        return [f"{slug}.md" for slug in self.state.lists]
 
     async def _async_set_last_synced(self, sha: str | None) -> None:
         self.last_synced_commit = sha

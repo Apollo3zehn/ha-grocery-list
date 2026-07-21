@@ -41,11 +41,12 @@ def entry() -> MockConfigEntry:
 
 
 @pytest.fixture
-async def coord(hass: HomeAssistant, entry: MockConfigEntry) -> GroceryCoordinator:
+async def coord(hass: HomeAssistant, entry: MockConfigEntry):
     entry.add_to_hass(hass)
     c = GroceryCoordinator(hass, entry)
     await c.async_setup()
-    return c
+    yield c
+    await c.async_shutdown()
 
 
 async def test_add_item_creates_list_and_item(coord: GroceryCoordinator):

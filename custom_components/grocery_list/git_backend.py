@@ -30,8 +30,9 @@ import io
 import logging
 import os
 import shutil
+import time
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, TypeVar
 
 from dulwich import porcelain
 from dulwich.client import get_transport_and_path
@@ -39,6 +40,37 @@ from dulwich.objects import Blob, Commit, Tree
 from dulwich.repo import Repo
 
 _LOGGER = logging.getLogger(__name__)
+
+# Transient network conditions (esp. Codeberg dropping SSH connections under
+# load) surface as errors like "Error reading SSH protocol banner", "Connection
+# reset by peer", broken pipe, timeouts, etc. These are not auth or config
+# problems and usually succeed on a quick retry, so remote ops retry with a
+# short exponential backoff before giving up and reporting offline.
+RETRY_ATTEMPTS = 3
+RETRY_BASE_DELAY = 1.0  # seconds; grows 1s, 2s, 4s ...
+
+_TRANSIENT_MARKERS = (
+    "banner",
+    "connection reset",
+    "reset by peer",
+    "broken pipe",
+    "timed out",
+    "timeout",
+    "temporary failure",
+    "connection closed",
+    "connection refused",
+    "eof",
+    "no route to host",
+    "network is unreachable",
+)
+
+T = TypeVar("T")
+
+
+def _is_transient(msg: str) -> bool:
+    """Heuristic: is this (lowercased) error message a transient network blip
+    worth retrying, as opposed to an auth/config error?"""
+    return any(marker in msg for marker in _TRANSIENT_MARKERS)
 
 
 class GitBackendError(Exception):
@@ -357,6 +389,21 @@ class GitBackend:
 
     # -- write --------------------------------------------------------------
 
+    @staticmethod
+    def _stage(repo: Repo, paths: list[bytes]) -> None:
+        """Stage paths, tolerating dulwich's API move across versions.
+
+        dulwich 1.x relocated staging from ``Repo.stage`` to
+        ``Repo.get_worktree().stage`` (Home Assistant 2026.x bundles 1.2.x,
+        while older HA releases in our supported floor shipped 0.22.x). Try the
+        newer worktree API first and fall back to the legacy method.
+        """
+        get_worktree = getattr(repo, "get_worktree", None)
+        if get_worktree is not None:
+            get_worktree().stage(paths)
+        else:  # dulwich < 1.0
+            repo.stage(paths)
+
     def write_files(self, files: dict[str, bytes]) -> None:
         """Write files (path -> bytes) into the working tree and stage them."""
         repo = self.repo
@@ -367,7 +414,7 @@ class GitBackend:
             with open(full, "wb") as fh:
                 fh.write(data)
             to_stage.append(rel_path.encode())
-        repo.stage(to_stage)
+        self._stage(repo, to_stage)
 
     def remove_files(self, rel_paths: list[str]) -> None:
         """Remove files from the working tree and stage the deletions."""
@@ -376,12 +423,28 @@ class GitBackend:
             full = os.path.join(self._work_dir, rel_path)
             if os.path.isfile(full):
                 os.remove(full)
-        repo.stage([p.encode() for p in rel_paths])
+        self._stage(repo, [p.encode() for p in rel_paths])
+
+    @staticmethod
+    def _do_commit(repo: Repo, message: bytes, **kwargs) -> bytes:
+        """Commit the staged index, tolerating dulwich's API move.
+
+        dulwich 1.x moved committing from ``Repo.do_commit`` to
+        ``Repo.get_worktree().commit`` (HA 2026.x bundles 1.2.x; our supported
+        floor's 0.22.x still had ``do_commit``). Prefer the worktree API and
+        fall back to the legacy method. Both accept ``author``/``committer``/
+        ``merge_heads`` and return the new commit SHA (bytes).
+        """
+        get_worktree = getattr(repo, "get_worktree", None)
+        if get_worktree is not None:
+            return get_worktree().commit(message=message, **kwargs)
+        return repo.do_commit(message, **kwargs)  # dulwich < 1.0
 
     def commit(self, message: str, author: str) -> str:
         """Create a normal commit from the staged index. Returns commit sha."""
         author_bytes = author.encode()
-        sha = self.repo.do_commit(
+        sha = self._do_commit(
+            self.repo,
             message.encode(),
             author=author_bytes,
             committer=author_bytes,
@@ -405,7 +468,8 @@ class GitBackend:
         if head:
             parents.append(head.encode())
         parents.append(their_parent_sha.encode())
-        sha = repo.do_commit(
+        sha = self._do_commit(
+            repo,
             message.encode(),
             author=author_bytes,
             committer=author_bytes,
@@ -425,23 +489,57 @@ class GitBackend:
             return get_transport_and_path(self._url)
         return get_transport_and_path(self._https_url())
 
+    def _remote_op(self, op_name: str, fn: Callable[[], T]) -> T:
+        """Run a remote git operation with retry-on-transient-failure.
+
+        Auth/permission errors are raised immediately as GitAuthError (no point
+        retrying bad credentials). Transient network errors (SSH banner reset,
+        connection reset/refused, timeouts — see ``_is_transient``) are retried
+        up to ``RETRY_ATTEMPTS`` times with exponential backoff. Anything still
+        failing after the retries, or a non-transient failure, is raised as
+        GitBackendError so the coordinator reports offline.
+        """
+        last_err: Exception | None = None
+        for attempt in range(1, RETRY_ATTEMPTS + 1):
+            try:
+                return fn()
+            except Exception as err:  # noqa: BLE001
+                msg = str(err).lower()
+                if "auth" in msg or "permission" in msg or "denied" in msg:
+                    raise GitAuthError(str(err)) from err
+                last_err = err
+                if attempt < RETRY_ATTEMPTS and _is_transient(msg):
+                    delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                    _LOGGER.debug(
+                        "Grocery List: git %s transient failure (attempt "
+                        "%d/%d), retrying in %.1fs: %s",
+                        op_name,
+                        attempt,
+                        RETRY_ATTEMPTS,
+                        delay,
+                        err,
+                    )
+                    time.sleep(delay)
+                    continue
+                break
+        raise GitBackendError(str(last_err)) from last_err
+
     def fetch(self) -> str | None:
         """Fetch remote refs into the local repo. Returns remote branch sha."""
-        try:
+
+        def _do() -> str | None:
             client, path = self._client_and_path()
             result = client.fetch(path, self.repo)
             ref = f"refs/heads/{self._branch}".encode()
             remote_sha = result.refs.get(ref)
             return remote_sha.decode() if remote_sha else None
-        except Exception as err:  # noqa: BLE001
-            msg = str(err).lower()
-            if "auth" in msg or "permission" in msg or "denied" in msg:
-                raise GitAuthError(str(err)) from err
-            raise GitBackendError(str(err)) from err
+
+        return self._remote_op("fetch", _do)
 
     def push(self) -> None:
         """Push the local branch to the remote."""
-        try:
+
+        def _do() -> None:
             client, path = self._client_and_path()
             branch_ref = f"refs/heads/{self._branch}".encode()
 
@@ -453,8 +551,5 @@ class GitBackend:
                 update_refs,
                 self.repo.object_store.generate_pack_data,
             )
-        except Exception as err:  # noqa: BLE001
-            msg = str(err).lower()
-            if "auth" in msg or "permission" in msg or "denied" in msg:
-                raise GitAuthError(str(err)) from err
-            raise GitBackendError(str(err)) from err
+
+        self._remote_op("push", _do)

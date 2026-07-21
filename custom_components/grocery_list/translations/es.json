@@ -2,54 +2,56 @@
   "config": {
     "step": {
       "user": {
-        "title": "Configuraci\u00f3n de la lista de la compra",
-        "description": "Elija c\u00f3mo esta instancia de Home Assistant almacena sus listas de la compra.",
+        "title": "Configuración de la lista de la compra",
+        "description": "Elija cómo esta instancia de Home Assistant almacena sus listas de la compra.",
         "menu_options": {
-          "local": "Solo local (sin sincronizaci\u00f3n)",
+          "local": "Solo local (sin sincronización)",
           "git": "Sincronizar con un repositorio git"
         }
       },
       "local": {
         "title": "Lista de la compra local",
-        "description": "D\u00e9 un nombre a esta instancia de Home Assistant. Sus listas se almacenan localmente y no se sincronizan con ning\u00fan repositorio git.",
+        "description": "Dé un nombre a esta instancia de Home Assistant. Sus listas se almacenan localmente y no se sincronizan con ningún repositorio git.",
         "data": {
           "identity": "Nombre de la instancia"
         },
         "data_description": {
-          "identity": "Este nombre se guarda con cada art\u00edculo que a\u00f1ade (el campo \u00aba\u00f1adido por\u00bb) y delimita su historial de deshacer/rehacer."
+          "identity": "Este nombre se guarda con cada artículo que añade (el campo «añadido por») y delimita su historial de deshacer/rehacer."
         }
       },
       "git": {
-        "title": "Configuraci\u00f3n de la lista de la compra",
-        "description": "D\u00e9 un nombre a esta instancia de Home Assistant y con\u00e9ctela a su repositorio git. El repositorio se clonar\u00e1 para validar la conexi\u00f3n; la configuraci\u00f3n solo se completa si la clonaci\u00f3n tiene \u00e9xito.",
+        "title": "Configuración de la lista de la compra",
+        "description": "Dé un nombre a esta instancia de Home Assistant y conéctela a su repositorio git. El repositorio se clonará para validar la conexión; la configuración solo se completa si la clonación tiene éxito.",
         "data": {
           "identity": "Nombre de la instancia",
-          "auth_method": "M\u00e9todo de autenticaci\u00f3n",
+          "auth_method": "Método de autenticación",
           "repo_url": "URL del repositorio",
           "branch": "Rama",
+          "lists_path": "Ruta de las listas (opcional)",
           "ssh_key": "Clave privada SSH",
           "ssh_key_path": "Ruta del archivo de clave privada SSH",
           "https_token": "Token de acceso (opcional)"
         },
         "data_description": {
-          "identity": "Este nombre se guarda con cada art\u00edculo que a\u00f1ade (el campo \u00aba\u00f1adido por\u00bb) y delimita su historial de deshacer/rehacer.",
+          "identity": "Este nombre se guarda con cada artículo que añade (el campo «añadido por») y delimita su historial de deshacer/rehacer.",
           "auth_method": "Elija SSH (recomendado: una clave de despliegue limitada al repositorio) o HTTPS (un token de acceso limitado al repositorio).",
           "repo_url": "Para SSH use git@host:propietario/repo.git. Para HTTPS use https://host/propietario/repo.git.",
-          "ssh_key": "Pegue la clave privada, o d\u00e9jelo vac\u00edo e indique una ruta de archivo abajo.",
+          "lists_path": "Carpeta relativa dentro del repositorio donde se almacenan los archivos de listas, p. ej. ruta/a/las-listas-de-compra. Déjelo vacío para almacenarlos en la raíz del repositorio.",
+          "ssh_key": "Pegue la clave privada, o déjelo vacío e indique una ruta de archivo abajo.",
           "ssh_key_path": "Ruta a un archivo de clave privada montado (permisos 600). Preferido para que la clave no se almacene en Home Assistant.",
-          "https_token": "Token de \u00e1mbito limitado al repositorio. D\u00e9jelo vac\u00edo para repositorios p\u00fablicos."
+          "https_token": "Token de ámbito limitado al repositorio. Déjelo vacío para repositorios públicos."
         }
       }
     },
     "error": {
       "clone_failed": "No se pudo clonar el repositorio. Compruebe la URL y las credenciales.",
-      "auth_failed": "Error de autenticaci\u00f3n. Compruebe su clave SSH o token de acceso.",
-      "invalid_url": "La URL del repositorio no es v\u00e1lida para el m\u00e9todo de autenticaci\u00f3n seleccionado.",
+      "auth_failed": "Error de autenticación. Compruebe su clave SSH o token de acceso.",
+      "invalid_url": "La URL del repositorio no es válida para el método de autenticación seleccionado.",
       "key_read_failed": "No se pudo leer el archivo de clave SSH en la ruta indicada.",
       "identity_required": "Introduzca un nombre de instancia."
     },
     "abort": {
-      "already_configured": "Este repositorio ya est\u00e1 configurado."
+      "already_configured": "Este repositorio ya está configurado."
     }
   },
   "options": {
@@ -57,11 +59,24 @@
       "init": {
         "title": "Opciones de la lista de la compra",
         "data": {
-          "push_debounce_seconds": "Retraso de env\u00edo tras el \u00faltimo cambio (segundos)",
+          "push_debounce_seconds": "Retraso de envío tras el último cambio (segundos)",
           "pull_interval_seconds": "Intervalo de descarga (segundos)",
-          "archive_retention_days": "Retenci\u00f3n del archivo (d\u00edas)"
+          "archive_retention_days": "Retención del archivo (días)",
+          "ssh_key": "Nueva clave privada SSH",
+          "ssh_key_path": "Nueva ruta del archivo de clave privada SSH",
+          "https_token": "Nuevo token de acceso"
+        },
+        "description": "Directorio de trabajo de git (solo lectura): {git_work_dir}\nRuta base de las listas en el repositorio (solo lectura): {lists_base_path}\n\nDeje los campos de credenciales vacíos para mantener los valores actuales.",
+        "data_description": {
+          "ssh_key": "Pegue una nueva clave privada para reemplazar la almacenada. Deje vacío para mantener la clave actual.",
+          "ssh_key_path": "Ruta a un archivo de clave privada montado (permisos 600). Deje vacío para mantener la ruta actual.",
+          "https_token": "Token de acceso limitado al repositorio. Deje vacío para mantener el token actual."
         }
       }
+    },
+    "error": {
+      "clone_failed": "No se pudo clonar el repositorio. Compruebe la URL y las credenciales.",
+      "auth_failed": "Error de autenticación. Compruebe su clave SSH o token de acceso."
     }
   }
 }

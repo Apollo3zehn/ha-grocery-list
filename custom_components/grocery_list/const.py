@@ -12,6 +12,10 @@ CONF_SSH_KEY = "ssh_key"
 CONF_SSH_KEY_PATH = "ssh_key_path"
 CONF_HTTPS_TOKEN = "https_token"
 CONF_BRANCH = "branch"
+# Optional relative path inside the repo where list files are stored. Empty
+# (default) means the repo root: ``<slug>.md``. A value like ``groceries`` or
+# ``home/groceries`` stores lists at ``home/groceries/<slug>.md``.
+CONF_LISTS_PATH = "lists_path"
 # Whether this instance syncs to a git remote. When False the integration runs
 # fully local (no clone, no timers, no push/pull); state is persisted to the
 # work_dir as plain files so it survives restarts.

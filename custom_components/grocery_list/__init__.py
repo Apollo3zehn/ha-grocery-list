@@ -15,7 +15,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
-from . import services, websocket_api
+from . import intents, services, websocket_api
 from .const import DOMAIN
 from .coordinator import GroceryCoordinator
 from .frontend import async_register_card
@@ -40,6 +40,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not entries:
         websocket_api.async_register(hass)
         services.async_register(hass)
+        intents.async_setup_intents(hass)
         await async_register_card(hass)
 
     coordinator = GroceryCoordinator(hass, entry)

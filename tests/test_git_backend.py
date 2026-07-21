@@ -196,3 +196,94 @@ def test_load_pkey_from_string_invalid_raises():
 
     with pytest.raises(GitAuthError):
         GitBackend._load_pkey_from_string("not a key")
+
+
+# --- transient-failure retry (Codeberg SSH banner resets, etc.) ------------
+
+
+def test_is_transient_classification():
+    from grocery_list.git_backend import _is_transient
+
+    # Real Codeberg failure that motivated the retry logic.
+    assert _is_transient(
+        "error reading ssh protocol banner[errno 104] connection reset by peer"
+    )
+    assert _is_transient("connection refused")
+    assert _is_transient("operation timed out")
+    assert _is_transient("broken pipe")
+    # Auth/other errors are NOT transient.
+    assert not _is_transient("permission denied (publickey)")
+    assert not _is_transient("repository not found")
+
+
+def _backend_for_retry(tmp_path):
+    # Backend instance whose remote ops we monkeypatch; no real network.
+    return GitBackend(str(tmp_path / "w"), "https://x/y.git", _creds(), "main")
+
+
+def test_remote_op_retries_transient_then_succeeds(tmp_path, monkeypatch):
+    import grocery_list.git_backend as gb
+
+    monkeypatch.setattr(gb.time, "sleep", lambda _s: None)  # no real backoff
+    backend = _backend_for_retry(tmp_path)
+    calls = {"n": 0}
+
+    def flaky():
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise OSError("Error reading SSH protocol banner: connection reset by peer")
+        return "ok"
+
+    assert backend._remote_op("fetch", flaky) == "ok"
+    assert calls["n"] == 3
+
+
+def test_remote_op_gives_up_after_attempts(tmp_path, monkeypatch):
+    import grocery_list.git_backend as gb
+    from grocery_list.git_backend import GitBackendError
+
+    monkeypatch.setattr(gb.time, "sleep", lambda _s: None)
+    backend = _backend_for_retry(tmp_path)
+    calls = {"n": 0}
+
+    def always_reset():
+        calls["n"] += 1
+        raise OSError("connection reset by peer")
+
+    with pytest.raises(GitBackendError):
+        backend._remote_op("push", always_reset)
+    assert calls["n"] == gb.RETRY_ATTEMPTS
+
+
+def test_remote_op_auth_error_not_retried(tmp_path, monkeypatch):
+    import grocery_list.git_backend as gb
+    from grocery_list.git_backend import GitAuthError
+
+    monkeypatch.setattr(gb.time, "sleep", lambda _s: None)
+    backend = _backend_for_retry(tmp_path)
+    calls = {"n": 0}
+
+    def denied():
+        calls["n"] += 1
+        raise OSError("Permission denied (publickey)")
+
+    with pytest.raises(GitAuthError):
+        backend._remote_op("fetch", denied)
+    assert calls["n"] == 1  # no retry on auth failure
+
+
+def test_remote_op_non_transient_not_retried(tmp_path, monkeypatch):
+    import grocery_list.git_backend as gb
+    from grocery_list.git_backend import GitBackendError
+
+    monkeypatch.setattr(gb.time, "sleep", lambda _s: None)
+    backend = _backend_for_retry(tmp_path)
+    calls = {"n": 0}
+
+    def hard_fail():
+        calls["n"] += 1
+        raise ValueError("repository not found")
+
+    with pytest.raises(GitBackendError):
+        backend._remote_op("fetch", hard_fail)
+    assert calls["n"] == 1  # non-transient: fail fast, no retry

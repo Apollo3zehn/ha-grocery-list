@@ -16,36 +16,38 @@
           "identity": "Instansnavn"
         },
         "data_description": {
-          "identity": "Dette navnet lagres med hver vare du legger til (feltet \u00ablagt til av\u00bb) og avgrenser angre-/gjenta-historikken din."
+          "identity": "Dette navnet lagres med hver vare du legger til (feltet «lagt til av») og avgrenser angre-/gjenta-historikken din."
         }
       },
       "git": {
         "title": "Konfigurer handleliste",
-        "description": "Gi denne Home Assistant-instansen et navn og koble den til git-depotet ditt. Depotet klones for \u00e5 validere tilkoblingen; oppsettet fullf\u00f8res bare hvis kloningen lykkes.",
+        "description": "Gi denne Home Assistant-instansen et navn og koble den til git-depotet ditt. Depotet klones for å validere tilkoblingen; oppsettet fullføres bare hvis kloningen lykkes.",
         "data": {
           "identity": "Instansnavn",
           "auth_method": "Autentiseringsmetode",
           "repo_url": "Depot-URL",
           "branch": "Gren",
-          "ssh_key": "Privat SSH-n\u00f8kkel",
-          "ssh_key_path": "Bane til privat SSH-n\u00f8kkelfil",
+          "lists_path": "Listesti (valgfritt)",
+          "ssh_key": "Privat SSH-nøkkel",
+          "ssh_key_path": "Bane til privat SSH-nøkkelfil",
           "https_token": "Tilgangstoken (valgfritt)"
         },
         "data_description": {
-          "identity": "Dette navnet lagres med hver vare du legger til (feltet \u00ablagt til av\u00bb) og avgrenser angre-/gjenta-historikken din.",
-          "auth_method": "Velg SSH (anbefalt: en depotbegrenset distribusjonsn\u00f8kkel) eller HTTPS (et depotbegrenset tilgangstoken).",
+          "identity": "Dette navnet lagres med hver vare du legger til (feltet «lagt til av») og avgrenser angre-/gjenta-historikken din.",
+          "auth_method": "Velg SSH (anbefalt: en depotbegrenset distribusjonsnøkkel) eller HTTPS (et depotbegrenset tilgangstoken).",
           "repo_url": "For SSH bruk git@host:eier/repo.git. For HTTPS bruk https://host/eier/repo.git.",
-          "ssh_key": "Lim inn den private n\u00f8kkelen, eller la st\u00e5 tom og oppgi en filbane nedenfor.",
-          "ssh_key_path": "Bane til en montert privat n\u00f8kkelfil (rettigheter 600). Foretrukket slik at n\u00f8kkelen ikke lagres i Home Assistant.",
-          "https_token": "Token begrenset til depotet. La st\u00e5 tom for offentlige depoter."
+          "lists_path": "Relativ mappe i depotet der listefilene lagres, f.eks. sti/til/handlelister. La stå tom for å lagre dem i depotets rot.",
+          "ssh_key": "Lim inn den private nøkkelen, eller la stå tom og oppgi en filbane nedenfor.",
+          "ssh_key_path": "Bane til en montert privat nøkkelfil (rettigheter 600). Foretrukket slik at nøkkelen ikke lagres i Home Assistant.",
+          "https_token": "Token begrenset til depotet. La stå tom for offentlige depoter."
         }
       }
     },
     "error": {
       "clone_failed": "Kunne ikke klone depotet. Kontroller URL og legitimasjon.",
-      "auth_failed": "Autentisering mislyktes. Kontroller SSH-n\u00f8kkelen eller tilgangstokenet ditt.",
+      "auth_failed": "Autentisering mislyktes. Kontroller SSH-nøkkelen eller tilgangstokenet ditt.",
       "invalid_url": "Depot-URL-en er ikke gyldig for den valgte autentiseringsmetoden.",
-      "key_read_failed": "Kunne ikke lese SSH-n\u00f8kkelfilen p\u00e5 den angitte banen.",
+      "key_read_failed": "Kunne ikke lese SSH-nøkkelfilen på den angitte banen.",
       "identity_required": "Skriv inn et instansnavn."
     },
     "abort": {
@@ -59,9 +61,22 @@
         "data": {
           "push_debounce_seconds": "Push-forsinkelse etter siste endring (sekunder)",
           "pull_interval_seconds": "Pull-intervall (sekunder)",
-          "archive_retention_days": "Arkivoppbevaring (dager)"
+          "archive_retention_days": "Arkivoppbevaring (dager)",
+          "ssh_key": "Ny privat SSH-nøkkel",
+          "ssh_key_path": "Ny filsti for privat SSH-nøkkel",
+          "https_token": "Nytt tilgangstoken"
+        },
+        "description": "Git-arbeidskatalog (skrivebeskyttet): {git_work_dir}\nListenes basissti i repoet (skrivebeskyttet): {lists_base_path}\n\nLa legitimasjonsfeltene stå tomme for å beholde nåværende verdier.",
+        "data_description": {
+          "ssh_key": "Lim inn en ny privat nøkkel for å erstatte den lagrede. La stå tomt for å beholde nåværende nøkkel.",
+          "ssh_key_path": "Sti til en montert privat nøkkelfil (tillatelser 600). La stå tomt for å beholde nåværende sti.",
+          "https_token": "Token med repo-begrenset omfang. La stå tomt for å beholde nåværende token."
         }
       }
+    },
+    "error": {
+      "clone_failed": "Kunne ikke klone repoet. Sjekk URL og legitimasjon.",
+      "auth_failed": "Autentisering mislyktes. Sjekk SSH-nøkkelen eller tilgangstokenet ditt."
     }
   }
 }

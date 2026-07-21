@@ -20,6 +20,7 @@ from custom_components.grocery_list.const import (
     CONF_BRANCH,
     CONF_IDENTITY,
     CONF_REPO_URL,
+    CONF_SYNC_ENABLED,
     DOMAIN,
 )
 from custom_components.grocery_list.coordinator import GroceryCoordinator
@@ -36,13 +37,15 @@ async def setup_ws(hass: HomeAssistant):
             CONF_AUTH_METHOD: "https",
             CONF_REPO_URL: "https://example.com/x/y.git",
             CONF_BRANCH: "main",
+            CONF_SYNC_ENABLED: False,
         },
     )
     entry.add_to_hass(hass)
     coordinator = GroceryCoordinator(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     websocket_api.async_register(hass)
-    return entry.entry_id, coordinator
+    yield entry.entry_id, coordinator
+    await coordinator.async_shutdown()
 
 
 async def test_subscribe_sends_initial_snapshot(

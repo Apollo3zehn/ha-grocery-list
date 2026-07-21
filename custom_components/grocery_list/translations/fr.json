@@ -6,50 +6,52 @@
         "description": "Choisissez comment cette instance Home Assistant stocke ses listes de courses.",
         "menu_options": {
           "local": "Local uniquement (sans synchronisation)",
-          "git": "Synchroniser avec un d\u00e9p\u00f4t git"
+          "git": "Synchroniser avec un dépôt git"
         }
       },
       "local": {
         "title": "Liste de courses locale",
-        "description": "Donnez un nom \u00e0 cette instance Home Assistant. Vos listes sont stock\u00e9es localement et ne sont synchronis\u00e9es avec aucun d\u00e9p\u00f4t git.",
+        "description": "Donnez un nom à cette instance Home Assistant. Vos listes sont stockées localement et ne sont synchronisées avec aucun dépôt git.",
         "data": {
           "identity": "Nom de l'instance"
         },
         "data_description": {
-          "identity": "Ce nom est enregistr\u00e9 avec chaque article que vous ajoutez (champ \u00ab ajout\u00e9 par \u00bb) et d\u00e9limite votre historique d'annulation/r\u00e9tablissement."
+          "identity": "Ce nom est enregistré avec chaque article que vous ajoutez (champ « ajouté par ») et délimite votre historique d'annulation/rétablissement."
         }
       },
       "git": {
         "title": "Configuration de la liste de courses",
-        "description": "Donnez un nom \u00e0 cette instance Home Assistant et connectez-la \u00e0 votre d\u00e9p\u00f4t git. Le d\u00e9p\u00f4t sera clon\u00e9 pour valider la connexion ; la configuration ne s'ach\u00e8ve que si le clonage r\u00e9ussit.",
+        "description": "Donnez un nom à cette instance Home Assistant et connectez-la à votre dépôt git. Le dépôt sera cloné pour valider la connexion ; la configuration ne s'achève que si le clonage réussit.",
         "data": {
           "identity": "Nom de l'instance",
-          "auth_method": "M\u00e9thode d'authentification",
-          "repo_url": "URL du d\u00e9p\u00f4t",
+          "auth_method": "Méthode d'authentification",
+          "repo_url": "URL du dépôt",
           "branch": "Branche",
-          "ssh_key": "Cl\u00e9 priv\u00e9e SSH",
-          "ssh_key_path": "Chemin du fichier de cl\u00e9 priv\u00e9e SSH",
-          "https_token": "Jeton d'acc\u00e8s (optionnel)"
+          "lists_path": "Chemin des listes (optionnel)",
+          "ssh_key": "Clé privée SSH",
+          "ssh_key_path": "Chemin du fichier de clé privée SSH",
+          "https_token": "Jeton d'accès (optionnel)"
         },
         "data_description": {
-          "identity": "Ce nom est enregistr\u00e9 avec chaque article que vous ajoutez (champ \u00ab ajout\u00e9 par \u00bb) et d\u00e9limite votre historique d'annulation/r\u00e9tablissement.",
-          "auth_method": "Choisissez SSH (recommand\u00e9 : une cl\u00e9 de d\u00e9ploiement limit\u00e9e au d\u00e9p\u00f4t) ou HTTPS (un jeton d'acc\u00e8s limit\u00e9 au d\u00e9p\u00f4t).",
+          "identity": "Ce nom est enregistré avec chaque article que vous ajoutez (champ « ajouté par ») et délimite votre historique d'annulation/rétablissement.",
+          "auth_method": "Choisissez SSH (recommandé : une clé de déploiement limitée au dépôt) ou HTTPS (un jeton d'accès limité au dépôt).",
           "repo_url": "Pour SSH, utilisez git@host:proprietaire/repo.git. Pour HTTPS, utilisez https://host/proprietaire/repo.git.",
-          "ssh_key": "Collez la cl\u00e9 priv\u00e9e, ou laissez vide et indiquez un chemin de fichier ci-dessous.",
-          "ssh_key_path": "Chemin vers un fichier de cl\u00e9 priv\u00e9e mont\u00e9 (permissions 600). Pr\u00e9f\u00e9rable afin que la cl\u00e9 ne soit pas stock\u00e9e dans Home Assistant.",
-          "https_token": "Jeton \u00e0 port\u00e9e limit\u00e9e au d\u00e9p\u00f4t. Laissez vide pour les d\u00e9p\u00f4ts publics."
+          "lists_path": "Dossier relatif dans le dépôt où les fichiers de listes sont stockés, par ex. chemin/vers/les-listes-de-courses. Laissez vide pour les stocker à la racine du dépôt.",
+          "ssh_key": "Collez la clé privée, ou laissez vide et indiquez un chemin de fichier ci-dessous.",
+          "ssh_key_path": "Chemin vers un fichier de clé privée monté (permissions 600). Préférable afin que la clé ne soit pas stockée dans Home Assistant.",
+          "https_token": "Jeton à portée limitée au dépôt. Laissez vide pour les dépôts publics."
         }
       }
     },
     "error": {
-      "clone_failed": "Impossible de cloner le d\u00e9p\u00f4t. V\u00e9rifiez l'URL et les identifiants.",
-      "auth_failed": "\u00c9chec de l'authentification. V\u00e9rifiez votre cl\u00e9 SSH ou votre jeton d'acc\u00e8s.",
-      "invalid_url": "L'URL du d\u00e9p\u00f4t n'est pas valide pour la m\u00e9thode d'authentification s\u00e9lectionn\u00e9e.",
-      "key_read_failed": "Impossible de lire le fichier de cl\u00e9 SSH au chemin indiqu\u00e9.",
+      "clone_failed": "Impossible de cloner le dépôt. Vérifiez l'URL et les identifiants.",
+      "auth_failed": "Échec de l'authentification. Vérifiez votre clé SSH ou votre jeton d'accès.",
+      "invalid_url": "L'URL du dépôt n'est pas valide pour la méthode d'authentification sélectionnée.",
+      "key_read_failed": "Impossible de lire le fichier de clé SSH au chemin indiqué.",
       "identity_required": "Veuillez saisir un nom d'instance."
     },
     "abort": {
-      "already_configured": "Ce d\u00e9p\u00f4t est d\u00e9j\u00e0 configur\u00e9."
+      "already_configured": "Ce dépôt est déjà configuré."
     }
   },
   "options": {
@@ -57,11 +59,24 @@
       "init": {
         "title": "Options de la liste de courses",
         "data": {
-          "push_debounce_seconds": "D\u00e9lai d'envoi apr\u00e8s la derni\u00e8re modification (secondes)",
-          "pull_interval_seconds": "Intervalle de r\u00e9cup\u00e9ration (secondes)",
-          "archive_retention_days": "Conservation de l'archive (jours)"
+          "push_debounce_seconds": "Délai d'envoi après la dernière modification (secondes)",
+          "pull_interval_seconds": "Intervalle de récupération (secondes)",
+          "archive_retention_days": "Conservation de l'archive (jours)",
+          "ssh_key": "Nouvelle clé privée SSH",
+          "ssh_key_path": "Nouveau chemin du fichier de clé privée SSH",
+          "https_token": "Nouveau jeton d'accès"
+        },
+        "description": "Répertoire de travail git (lecture seule) : {git_work_dir}\nChemin de base des listes dans le dépôt (lecture seule) : {lists_base_path}\n\nLaissez les champs d'identifiants vides pour conserver les valeurs actuelles.",
+        "data_description": {
+          "ssh_key": "Collez une nouvelle clé privée pour remplacer celle enregistrée. Laissez vide pour conserver la clé actuelle.",
+          "ssh_key_path": "Chemin vers un fichier de clé privée monté (permissions 600). Laissez vide pour conserver le chemin actuel.",
+          "https_token": "Jeton à portée limitée au dépôt. Laissez vide pour conserver le jeton actuel."
         }
       }
+    },
+    "error": {
+      "clone_failed": "Impossible de cloner le dépôt. Vérifiez l'URL et les identifiants.",
+      "auth_failed": "Échec de l'authentification. Vérifiez votre clé SSH ou votre jeton d'accès."
     }
   }
 }

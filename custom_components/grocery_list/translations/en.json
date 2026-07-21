@@ -27,6 +27,7 @@
           "auth_method": "Authentication method",
           "repo_url": "Repository URL",
           "branch": "Branch",
+          "lists_path": "Lists path (optional)",
           "ssh_key": "SSH private key",
           "ssh_key_path": "SSH private key file path",
           "https_token": "Access token (optional)"
@@ -35,6 +36,7 @@
           "identity": "This name is stored with every item you add (the 'added by' field) and scopes your undo/redo history.",
           "auth_method": "Choose SSH (recommended: a repo-scoped deploy key) or HTTPS (a repo-scoped access token).",
           "repo_url": "For SSH use git@host:owner/repo.git. For HTTPS use https://host/owner/repo.git.",
+          "lists_path": "Relative folder inside the repository where list files are stored, e.g. path/to/grocery-lists. Leave empty to store them at the repository root.",
           "ssh_key": "Paste the private key, or leave empty and provide a file path below.",
           "ssh_key_path": "Path to a mounted private key file (permissions 600). Preferred so the key is not stored in Home Assistant.",
           "https_token": "Repo-scoped fine-grained token. Leave empty for public repositories."
@@ -56,12 +58,25 @@
     "step": {
       "init": {
         "title": "Grocery List Options",
+        "description": "Git working directory (read-only): {git_work_dir}\nLists base path in repo (read-only): {lists_base_path}\n\nLeave credential fields empty to keep the current values.",
         "data": {
           "push_debounce_seconds": "Push delay after last change (seconds)",
           "pull_interval_seconds": "Pull interval (seconds)",
-          "archive_retention_days": "Archive retention (days)"
+          "archive_retention_days": "Archive retention (days)",
+          "ssh_key": "New SSH private key",
+          "ssh_key_path": "New SSH private key file path",
+          "https_token": "New access token"
+        },
+        "data_description": {
+          "ssh_key": "Paste a new private key to replace the stored one. Leave empty to keep the current key.",
+          "ssh_key_path": "Path to a mounted private key file (permissions 600). Leave empty to keep the current path.",
+          "https_token": "Repo-scoped fine-grained token. Leave empty to keep the current token."
         }
       }
+    },
+    "error": {
+      "clone_failed": "Could not clone the repository. Check the URL and credentials.",
+      "auth_failed": "Authentication failed. Check your SSH key or access token."
     }
   }
 }

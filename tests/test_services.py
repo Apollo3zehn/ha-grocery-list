@@ -21,6 +21,7 @@ from custom_components.grocery_list.const import (
     CONF_BRANCH,
     CONF_IDENTITY,
     CONF_REPO_URL,
+    CONF_SYNC_ENABLED,
     DOMAIN,
 )
 from custom_components.grocery_list.coordinator import GroceryCoordinator
@@ -35,6 +36,7 @@ def _make_entry(hass: HomeAssistant, identity: str) -> MockConfigEntry:
             CONF_AUTH_METHOD: "https",
             CONF_REPO_URL: f"https://example.com/x/{identity}.git",
             CONF_BRANCH: "main",
+            CONF_SYNC_ENABLED: False,
         },
     )
     entry.add_to_hass(hass)
@@ -43,12 +45,18 @@ def _make_entry(hass: HomeAssistant, identity: str) -> MockConfigEntry:
 
 @pytest.fixture
 async def setup_services(hass: HomeAssistant):
-    """Register services + a single coordinator; return (entry_id, coordinator)."""
+    """Register services + a single coordinator; yield (entry_id, coordinator).
+
+    Teardown cancels the coordinator's debounce timer via ``async_shutdown`` so
+    the phacc harness doesn't fail on a lingering timer; ``CONF_SYNC_ENABLED``
+    is False to stay on the local write path.
+    """
     entry = _make_entry(hass, "kitchen-pi")
     coordinator = GroceryCoordinator(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     services.async_register(hass)
-    return entry.entry_id, coordinator
+    yield entry.entry_id, coordinator
+    await coordinator.async_shutdown()
 
 
 async def test_add_item_service(hass: HomeAssistant, setup_services):

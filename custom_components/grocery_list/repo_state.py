@@ -30,15 +30,34 @@ import re
 from dataclasses import dataclass, field
 
 from . import markdown_io
-from .const import LISTS_DIR
 from .merge import merge as merge_list
 from .models import GroceryList
 
-_SLUG_FROM_PATH = re.compile(r"^lists/(?P<slug>.+)\.md$")
+
+def _norm_prefix(lists_path: str) -> str:
+    """Normalize a configured lists path to a clean relative prefix.
+
+    Empty / "." / "/" all mean the repo root. Leading/trailing slashes are
+    stripped so ``/foo/bar/`` and ``foo/bar`` are equivalent.
+    """
+    return (lists_path or "").strip().strip("/")
 
 
-def _list_path(slug: str) -> str:
-    return f"{LISTS_DIR}/{slug}.md"
+def _slug_regex(lists_path: str) -> re.Pattern[str]:
+    """Regex matching ``<prefix>/<slug>.md`` (or ``<slug>.md`` at root).
+
+    ``slug`` excludes ``/`` so only files directly in the lists directory are
+    treated as lists (nested files are ignored).
+    """
+    prefix = _norm_prefix(lists_path)
+    if prefix:
+        return re.compile(rf"^{re.escape(prefix)}/(?P<slug>[^/]+)\.md$")
+    return re.compile(r"^(?P<slug>[^/]+)\.md$")
+
+
+def _list_path(slug: str, lists_path: str = "") -> str:
+    prefix = _norm_prefix(lists_path)
+    return f"{prefix}/{slug}.md" if prefix else f"{slug}.md"
 
 
 @dataclass(slots=True)
@@ -54,15 +73,19 @@ class RepoState:
     # -- loading ------------------------------------------------------------
 
     @classmethod
-    def from_files(cls, files: dict[str, bytes]) -> "RepoState":
+    def from_files(
+        cls, files: dict[str, bytes], lists_path: str = ""
+    ) -> "RepoState":
         """Build a RepoState from a ``path -> bytes`` mapping.
 
-        Only ``lists/<slug>.md`` files are considered; anything else is
-        ignored. The filename is authoritative for each list's slug.
+        Only ``<lists_path>/<slug>.md`` files are considered (``<slug>.md`` at
+        the repo root when ``lists_path`` is empty); anything else is ignored.
+        The filename is authoritative for each list's slug.
         """
+        slug_re = _slug_regex(lists_path)
         lists: dict[str, GroceryList] = {}
         for path, data in files.items():
-            slug_match = _SLUG_FROM_PATH.match(path)
+            slug_match = slug_re.match(path)
             if not slug_match:
                 continue
             slug = slug_match.group("slug")
@@ -73,16 +96,17 @@ class RepoState:
 
     # -- serialization ------------------------------------------------------
 
-    def to_files(self) -> dict[str, bytes]:
+    def to_files(self, lists_path: str = "") -> dict[str, bytes]:
         """Serialize to a ``path -> bytes`` mapping for the git backend.
 
-        Each list is rendered to clean Markdown grouped by category name.
+        Each list is rendered to clean Markdown grouped by category name and
+        placed under ``lists_path`` (repo root when empty).
         """
         out: dict[str, bytes] = {}
         for slug, glist in self.lists.items():
             glist.slug = slug
             md = markdown_io.serialize(glist)
-            out[_list_path(slug)] = md.encode("utf-8")
+            out[_list_path(slug, lists_path)] = md.encode("utf-8")
         return out
 
 

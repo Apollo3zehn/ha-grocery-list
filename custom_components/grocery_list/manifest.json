@@ -4,10 +4,11 @@
   "codeowners": ["@Apollo3zehn"],
   "config_flow": true,
   "dependencies": ["http", "websocket_api", "frontend", "lovelace"],
-  "documentation": "https://codeberg.org/Apollo3zehn/ha-grocery-list",
+  "documentation": "https://github.com/Apollo3zehn/ha-grocery-list",
+  "homeassistant": "2026.2.0",
   "integration_type": "service",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://codeberg.org/Apollo3zehn/ha-grocery-list/issues",
+  "issue_tracker": "https://github.com/Apollo3zehn/ha-grocery-list/issues",
   "requirements": ["dulwich==0.22.1", "paramiko==3.4.0"],
-  "version": "0.5.2"
+  "version": "0.5.3"
 }

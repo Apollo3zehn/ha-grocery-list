@@ -16,7 +16,7 @@
           "identity": "Instantienaam"
         },
         "data_description": {
-          "identity": "Deze naam wordt bij elk item dat je toevoegt opgeslagen (veld \u2018toegevoegd door\u2019) en bepaalt de reikwijdte van je ongedaan maken/opnieuw uitvoeren-geschiedenis."
+          "identity": "Deze naam wordt bij elk item dat je toevoegt opgeslagen (veld ‘toegevoegd door’) en bepaalt de reikwijdte van je ongedaan maken/opnieuw uitvoeren-geschiedenis."
         }
       },
       "git": {
@@ -27,16 +27,18 @@
           "auth_method": "Authenticatiemethode",
           "repo_url": "Repository-URL",
           "branch": "Branch",
-          "ssh_key": "Priv\u00e9-SSH-sleutel",
-          "ssh_key_path": "Pad naar priv\u00e9-SSH-sleutelbestand",
+          "lists_path": "Lijstenpad (optioneel)",
+          "ssh_key": "Privé-SSH-sleutel",
+          "ssh_key_path": "Pad naar privé-SSH-sleutelbestand",
           "https_token": "Toegangstoken (optioneel)"
         },
         "data_description": {
-          "identity": "Deze naam wordt bij elk item dat je toevoegt opgeslagen (veld \u2018toegevoegd door\u2019) en bepaalt de reikwijdte van je ongedaan maken/opnieuw uitvoeren-geschiedenis.",
+          "identity": "Deze naam wordt bij elk item dat je toevoegt opgeslagen (veld ‘toegevoegd door’) en bepaalt de reikwijdte van je ongedaan maken/opnieuw uitvoeren-geschiedenis.",
           "auth_method": "Kies SSH (aanbevolen: een repo-specifieke deploy-sleutel) of HTTPS (een repo-specifiek toegangstoken).",
           "repo_url": "Gebruik voor SSH git@host:eigenaar/repo.git. Gebruik voor HTTPS https://host/eigenaar/repo.git.",
-          "ssh_key": "Plak de priv\u00e9sleutel, of laat leeg en geef hieronder een bestandspad op.",
-          "ssh_key_path": "Pad naar een gekoppeld priv\u00e9sleutelbestand (rechten 600). Aanbevolen zodat de sleutel niet in Home Assistant wordt opgeslagen.",
+          "lists_path": "Relatieve map in de repository waar de lijstbestanden worden opgeslagen, bijv. pad/naar/boodschappenlijsten. Laat leeg om ze in de hoofdmap van de repository op te slaan.",
+          "ssh_key": "Plak de privésleutel, of laat leeg en geef hieronder een bestandspad op.",
+          "ssh_key_path": "Pad naar een gekoppeld privésleutelbestand (rechten 600). Aanbevolen zodat de sleutel niet in Home Assistant wordt opgeslagen.",
           "https_token": "Token met beperkte reikwijdte tot de repository. Laat leeg voor openbare repository's."
         }
       }
@@ -59,9 +61,22 @@
         "data": {
           "push_debounce_seconds": "Push-vertraging na laatste wijziging (seconden)",
           "pull_interval_seconds": "Pull-interval (seconden)",
-          "archive_retention_days": "Archiefbewaring (dagen)"
+          "archive_retention_days": "Archiefbewaring (dagen)",
+          "ssh_key": "Nieuwe privé-SSH-sleutel",
+          "ssh_key_path": "Nieuw bestandspad van privé-SSH-sleutel",
+          "https_token": "Nieuw toegangstoken"
+        },
+        "description": "Git-werkmap (alleen-lezen): {git_work_dir}\nBasispad van lijsten in repo (alleen-lezen): {lists_base_path}\n\nLaat de inloggegevensvelden leeg om de huidige waarden te behouden.",
+        "data_description": {
+          "ssh_key": "Plak een nieuwe privésleutel om de opgeslagen sleutel te vervangen. Laat leeg om de huidige sleutel te behouden.",
+          "ssh_key_path": "Pad naar een gekoppeld privésleutelbestand (rechten 600). Laat leeg om het huidige pad te behouden.",
+          "https_token": "Repo-specifiek token. Laat leeg om het huidige token te behouden."
         }
       }
+    },
+    "error": {
+      "clone_failed": "Kon de repository niet klonen. Controleer de URL en inloggegevens.",
+      "auth_failed": "Verificatie mislukt. Controleer uw SSH-sleutel of toegangstoken."
     }
   }
 }
