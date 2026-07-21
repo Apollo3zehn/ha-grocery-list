@@ -24,16 +24,6 @@ Lists are stored as plain Markdown in a git repository you control. The integrat
 
 ---
 
-## Screenshots
-
-> _Screenshots coming soon._
-
-| Lists & categories | Add with quantity | Archive & restore |
-| --- | --- | --- |
-| ![Lists and categories](docs/images/lists.png) | ![Add item with quantity](docs/images/add-item.png) | ![Archive view](docs/images/archive.png) |
-
----
-
 ## Getting started
 
 ### 1. Install via HACS
