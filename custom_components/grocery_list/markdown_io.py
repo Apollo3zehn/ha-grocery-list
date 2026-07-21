@@ -9,7 +9,9 @@ the model, and this module round-trips losslessly for the persisted fields
 Layout rules:
 - ``# <title>`` is the top-level heading.
 - Each category is a ``## <name>`` section; items are ``- [ ]``/``- [x]``.
-- Categories are ordered alphabetically by name; items with a ``None``
+- Categories are ordered by the list's ``category_order`` (the file is the
+  source of truth for that order); any category present in the items but not
+  in ``category_order`` is appended alphabetically. Items with a ``None``
   category render last under an ``uncategorized_label`` section (caller-
   provided, localized). Within a section, unchecked items come first and
   checked items sink to the bottom.
@@ -74,8 +76,10 @@ def serialize(
         key = item.category if item.category else ""
         buckets.setdefault(key, []).append(item)
 
-    # Section order: category names alphabetically, then uncategorized last.
-    ordered_keys: list[str] = sorted(k for k in buckets if k)
+    # Section order: honor the list's category_order for named categories
+    # (any present-but-unordered category is appended alphabetically), then
+    # uncategorized last.
+    ordered_keys: list[str] = [k for k in glist.ordered_categories() if k in buckets]
     if "" in buckets:
         ordered_keys.append("")
 
@@ -111,6 +115,7 @@ def parse(text: str, *, uncategorized_label: str = "Uncategorized") -> GroceryLi
     title = ""
     current_category: str | None = None
     items: list[Item] = []
+    category_order: list[str] = []
 
     for raw_line in text.splitlines():
         line = raw_line.rstrip("\n")
@@ -124,6 +129,8 @@ def parse(text: str, *, uncategorized_label: str = "Uncategorized") -> GroceryLi
         if h2:
             label = h2.group("label").strip()
             current_category = None if label == uncategorized_label else label
+            if current_category and current_category not in category_order:
+                category_order.append(current_category)
             continue
 
         item_match = _ITEM_RE.match(line)
@@ -142,4 +149,9 @@ def parse(text: str, *, uncategorized_label: str = "Uncategorized") -> GroceryLi
         )
 
     slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "list"
-    return GroceryList(slug=slug, title=title or "List", items=items)
+    return GroceryList(
+        slug=slug,
+        title=title or "List",
+        items=items,
+        category_order=category_order,
+    )

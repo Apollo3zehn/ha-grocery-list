@@ -1,10 +1,8 @@
-# 🛒 Grocery List for Home Assistant
+# Grocery List for Home Assistant
 
-**Shared, git-synced grocery lists with a beautiful mobile-first card — right inside Home Assistant.**
+Shared, git-synced grocery lists with a mobile-first Lovelace card, right inside Home Assistant.
 
-Stop juggling third-party apps and cloud accounts just to share a shopping list. Grocery List keeps your lists in a plain-Markdown git repository *you* own, adds a slick Lovelace card, structured quantities, categories, per-device undo/redo, and an archive — and it syncs across every Home Assistant instance in the household without ever leaving git conflict markers in your files.
-
-> **git is only transport. The merge is ours.** Conflicts are resolved by a semantic three-way merge in Python, so your Markdown stays clean and readable everywhere (yes, even in Obsidian).
+Lists are stored as plain Markdown in a git repository you control. The integration adds a Lovelace card, structured quantities, categories, per-device undo/redo, and an archive, and syncs across every Home Assistant instance in your household. Git is used only for transport; conflicts are resolved by a semantic three-way merge in Python, so your Markdown files never end up with conflict markers.
 
 <p align="center">
   <img src="docs/images/card-overview.png" alt="Grocery List card overview" width="420">
@@ -12,21 +10,21 @@ Stop juggling third-party apps and cloud accounts just to share a shopping list.
 
 ---
 
-## ✨ Why you'll like it
+## Features
 
-- **📝 Plain Markdown, fully yours** — one human-readable file per list. Edit on your phone, in Obsidian, in any text editor. No lock-in, no proprietary format.
-- **🔄 Real multi-device sync** — every HA instance in the house sees the same lists. Add milk on the kitchen tablet, check it off on your phone.
-- **🧠 Conflicts just work** — a semantic three-way merge (not a text merge) means simultaneous edits never corrupt your files. Deletions stick, checked-state wins sanely, no `<<<<<<<` markers.
-- **🏠 Or go fully local** — don't want git? Run local-only mode: one shared list on one HA instance, persisted to disk, zero setup beyond a name.
-- **🎛️ A card that feels native** — mobile-first, quick add bar, quantity stepper, categories, and a one-tap sync badge.
-- **↩️ Per-device undo/redo** — every action is undoable, scoped to *your* device, backed by an op-log. Fat-fingered a delete? Undo it.
-- **📦 Archive, not delete** — "clear checked" tucks items into a browsable archive you can restore from, kept out of git entirely.
-- **🗣️ Voice & AI ready** — talk to your lists through Assist, and let LLM/MCP assistants read and edit them out of the box. *"Add two litres of milk to the shopping list."* No extra tokens, no config.
-- **🌍 Localized** — ships in **English, German, Spanish, French, Italian, Dutch, Norwegian, Polish, Portuguese, and Swedish**.
+- **Plain Markdown** — one human-readable file per list. No proprietary format or lock-in.
+- **Multi-device sync** — every Home Assistant instance in the house sees the same lists. Add an item on one device, check it off on another.
+- **Semantic merge** — a structured three-way merge (not a text merge) means simultaneous edits don't corrupt your files: deletions stick, checked-state resolves sensibly, and no conflict markers appear.
+- **Local-only mode** — no git required. Run a single list on one instance, persisted to disk, with nothing to configure beyond a name.
+- **Native-feeling card** — mobile-first, with a quick-add bar, quantity stepper, categories, and a sync-status badge.
+- **Per-device undo/redo** — every action is undoable, scoped to your device.
+- **Archive instead of delete** — "clear checked" moves items into a browsable archive you can restore from, kept out of git.
+- **Voice and AI control** — control lists through Assist, and let LLM/MCP assistants read and edit them with no extra configuration.
+- **Localized** — English, German, Spanish, French, Italian, Dutch, Norwegian, Polish, Portuguese, and Swedish.
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 > _Screenshots coming soon._
 
@@ -36,7 +34,7 @@ Stop juggling third-party apps and cloud accounts just to share a shopping list.
 
 ---
 
-## 🚀 Getting started
+## Getting started
 
 ### 1. Install via HACS
 
@@ -57,13 +55,13 @@ Add a **Custom: Grocery List Card** to any dashboard. That's it — the card shi
 
 ---
 
-## 🧑‍🍳 Using the card
+## Using the card
 
-The card is your day-to-day cockpit:
+The card is the main way you interact with your lists:
 
 - **List switcher** across the top to jump between shopping lists.
 - **Quick-add bar** with a name field, a quantity stepper, and unit + category pickers.
-- **Tap to check** items off — checked items sink to the bottom of their category so the active list stays front-and-center.
+- **Tap to check** items off — checked items move to the bottom of their category so the active items stay near the top.
 - **Inline editing** of names, quantities, and categories.
 - **Toolbar** with undo, redo, sync-now, the archive view, and category management.
 - **Sync badge** showing live status: *synced*, *pending*, *syncing*, *offline*, *error*, or *local*.
@@ -71,7 +69,7 @@ The card is your day-to-day cockpit:
 
 ### Structured quantities
 
-Items can carry a quantity (value + unit). Built-in units include **pcs, g, kg, ml, L, pack, bottle, can, bunch** — each localized. Quantities render inline in the Markdown as a tidy `×2 kg` suffix.
+Items can carry a quantity (value + unit). Built-in units include **pcs, g, kg, ml, L, pack, bottle, can, bunch**, each localized. Quantities render inline in the Markdown as a `×2 kg` suffix.
 
 ### Categories
 
@@ -87,7 +85,7 @@ Every change — add, edit, check, delete, clear, restore, even list create/rena
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 ### Local-only mode
 
@@ -116,13 +114,13 @@ Open the integration's options to tune:
 - **Pull interval** — default **300s** (range 30–86400).
 - **Rotate credentials** — swap the SSH key, key-file path, or HTTPS token without removing and re-adding the integration (re-validated by test-clone).
 
-### 🔐 A note on secrets
+### A note on secrets
 
 Home Assistant's `.storage` is **not** encrypted at rest. Prefer a repository-scoped deploy key or fine-grained token with the minimum required access. For SSH, a mounted key file (permissions `600`) is preferred over pasting the key.
 
 ---
 
-## 🤖 Automations, scripts & voice
+## Automations, scripts & voice
 
 ### Services (automations & scripts)
 
@@ -138,18 +136,18 @@ Every card action is also a Home Assistant service, so you can wire lists into a
 
 Each takes an optional `entry_id` (only needed when you've configured more than one list repository).
 
-### 🗣️ Voice & AI (Assist, LLMs & MCP)
+### Voice & AI (Assist, LLMs & MCP)
 
-Grocery List speaks fluent **Assist**. It registers a full set of intents, so you can control your lists by voice or text with any Assist pipeline:
+The integration registers a set of Assist intents, so you can control your lists by voice or text with any Assist pipeline:
 
 > *"What's on the grocery list?"*  
 > *"Add two litres of milk."*  
 > *"Check off the bananas."*  
 > *"Clear the checked items."*
 
-Because these are standard intents, Home Assistant automatically exposes them **as tools to any LLM conversation agent** (OpenAI, Anthropic, Google, local models…) and over the built-in **Model Context Protocol (MCP)** server at `/api/mcp/assist` — **token-free and with zero extra configuration**. Point an MCP-capable assistant at your Home Assistant and it can read and edit your grocery lists directly.
+Because these are standard intents, Home Assistant also exposes them as tools to any LLM conversation agent and over the built-in Model Context Protocol (MCP) server at `/api/mcp/assist`, with no extra configuration. An MCP-capable assistant pointed at your Home Assistant can read and edit your grocery lists directly.
 
-Unlike a raw "todo" wrapper, these tools understand the full model — **categories, structured quantities, and multiple lists** — so an assistant can *"add 500 g of tomatoes to Produce on the weekly list"* and it lands exactly right.
+The intents cover categories, structured quantities, and multiple lists, so an assistant can handle a request like *"add 500 g of tomatoes to Produce on the weekly list"*.
 
 | Tool (intent) | What the assistant can do |
 | --- | --- |
@@ -164,11 +162,11 @@ Unlike a raw "todo" wrapper, these tools understand the full model — **categor
 | `GroceryListRenameList` | Rename a list. |
 | `GroceryListDeleteList` | Delete a list and its items. |
 
-Lists are addressed by their **human name** (matched case-insensitively against title or slug); when you only have one list, the assistant can leave it out entirely. Items are addressed by name, with a category only needed to disambiguate when the same name appears in two categories — the tools return helpful, self-correcting errors (*"Several items named 'Milk' exist; specify category"*) so assistants recover gracefully.
+Lists are addressed by name (matched case-insensitively against title or slug); when you only have one list, it can be left out. Items are addressed by name, with a category needed only to disambiguate when the same name appears in two categories, in which case the tools return an error indicating the category is required.
 
 ---
 
-## 🔬 How it works
+## How it works
 
 Your lists live in a git repository you control. The integration clones it locally, reads and writes Markdown, and syncs in the background — using git purely for transport (clone, fetch, push, commit, blob reads). All conflict resolution is a **semantic three-way merge on structured models** (the base is the git merge-base of your last-synced commit and the remote), so:
 
@@ -202,7 +200,7 @@ Clean, diff-friendly, and editable anywhere. One file per list at `lists/<slug>.
 
 ---
 
-## 🛠️ Development
+## Development
 
 The backend is a standard Home Assistant custom integration under `custom_components/grocery_list/`. The card source lives in `grocery-list-card/` (TypeScript + Lit, built with Rollup); the build emits the bundled card directly into the integration's `frontend/` directory so it ships as a single artifact.
 
@@ -230,10 +228,10 @@ Pushing a `v*` tag triggers the release workflow (`.github/workflows/release.yml
 
 ---
 
-## ❤️ Contributing
+## Contributing
 
 Issues and pull requests are welcome. If you hit a bug or have an idea, [open an issue](https://github.com/Apollo3zehn/ha-grocery-list/issues).
 
-## 📄 License
+## License
 
 MIT — see [LICENSE](LICENSE).

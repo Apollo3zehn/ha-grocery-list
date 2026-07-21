@@ -109,6 +109,13 @@ export class GroceryApi {
     return this.send("delete_list", { slug });
   }
 
+  reorderCategories(
+    slug: string,
+    order: string[]
+  ): Promise<{ slug: string; category_order: string[] }> {
+    return this.send("reorder_categories", { slug, order });
+  }
+
   undo(): Promise<{ undone: boolean }> {
     return this.send("undo");
   }

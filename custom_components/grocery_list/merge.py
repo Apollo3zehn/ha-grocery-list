@@ -110,4 +110,38 @@ def merge(
         slug=ours.slug or theirs.slug or base.slug,
         title=title,
         items=merged,
+        category_order=_merge_category_order(base, ours, theirs, merged),
     )
+
+
+def _merge_category_order(
+    base: GroceryList,
+    ours: GroceryList,
+    theirs: GroceryList,
+    merged: list[Item],
+) -> list[str]:
+    """Merge the display order of categories across three snapshots.
+
+    Prefer whichever side changed the order vs base (tie -> ours), mirroring
+    the title rule. The chosen order is then reconciled with the categories
+    actually present after the item merge: unknown/removed categories are
+    dropped and any surviving category not covered by the chosen order is
+    appended alphabetically. This keeps a user's reordering intact while never
+    referencing a category that no longer has items.
+    """
+    if ours.category_order != base.category_order and (
+        theirs.category_order == base.category_order
+    ):
+        chosen = ours.category_order
+    elif theirs.category_order != base.category_order and (
+        ours.category_order == base.category_order
+    ):
+        chosen = theirs.category_order
+    else:
+        chosen = ours.category_order
+
+    live = {it.category for it in merged if it.category}
+    ordered = [c for c in chosen if c in live]
+    seen = set(ordered)
+    ordered.extend(sorted(c for c in live if c not in seen))
+    return ordered

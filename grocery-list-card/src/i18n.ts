@@ -54,6 +54,11 @@ const EN: Dict = {
   delete_list_confirm: "Delete this list and all its items? This cannot be undone by others once synced.",
   list_name_prompt: "New list name:",
   rename_list_prompt: "Rename list to:",
+  categories: "Categories",
+  reorder_categories: "Reorder categories",
+  move_up: "Move up",
+  move_down: "Move down",
+  no_categories: "No categories yet. Add an item with a category first.",
 };
 
 const DE: Dict = {
@@ -105,6 +110,11 @@ const DE: Dict = {
   delete_list_confirm: "Diese Liste und alle ihre Artikel l\u00f6schen? Nach der Synchronisierung k\u00f6nnen andere dies nicht r\u00fcckg\u00e4ngig machen.",
   list_name_prompt: "Name der neuen Liste:",
   rename_list_prompt: "Liste umbenennen in:",
+  categories: "Kategorien",
+  reorder_categories: "Kategorien neu ordnen",
+  move_up: "Nach oben",
+  move_down: "Nach unten",
+  no_categories: "Noch keine Kategorien. F\u00fcge zuerst einen Artikel mit Kategorie hinzu.",
 };
 
 const ES: Dict = {
@@ -156,6 +166,11 @@ const ES: Dict = {
   delete_list_confirm: "\u00bfEliminar esta lista y todos sus art\u00edculos? Una vez sincronizado, otros no podr\u00e1n deshacerlo.",
   list_name_prompt: "Nombre de la nueva lista:",
   rename_list_prompt: "Renombrar lista a:",
+  categories: "Categor\u00edas",
+  reorder_categories: "Reordenar categor\u00edas",
+  move_up: "Subir",
+  move_down: "Bajar",
+  no_categories: "A\u00fan no hay categor\u00edas. A\u00f1ade primero un art\u00edculo con categor\u00eda.",
 };
 
 const FR: Dict = {
@@ -207,6 +222,11 @@ const FR: Dict = {
   delete_list_confirm: "Supprimer cette liste et tous ses articles ? Une fois synchronis\u00e9, les autres ne pourront pas l'annuler.",
   list_name_prompt: "Nom de la nouvelle liste :",
   rename_list_prompt: "Renommer la liste en :",
+  categories: "Cat\u00e9gories",
+  reorder_categories: "R\u00e9organiser les cat\u00e9gories",
+  move_up: "Monter",
+  move_down: "Descendre",
+  no_categories: "Aucune cat\u00e9gorie pour l'instant. Ajoutez d'abord un article avec une cat\u00e9gorie.",
 };
 
 const IT: Dict = {
@@ -258,6 +278,11 @@ const IT: Dict = {
   delete_list_confirm: "Eliminare questa lista e tutti i suoi articoli? Una volta sincronizzato, altri non potranno annullarlo.",
   list_name_prompt: "Nome della nuova lista:",
   rename_list_prompt: "Rinomina lista in:",
+  categories: "Categorie",
+  reorder_categories: "Riordina categorie",
+  move_up: "Sposta su",
+  move_down: "Sposta gi\u00f9",
+  no_categories: "Ancora nessuna categoria. Aggiungi prima un articolo con categoria.",
 };
 
 const PT: Dict = {
@@ -309,6 +334,11 @@ const PT: Dict = {
   delete_list_confirm: "Eliminar esta lista e todos os seus artigos? Ap\u00f3s a sincroniza\u00e7\u00e3o, outros n\u00e3o poder\u00e3o desfazer.",
   list_name_prompt: "Nome da nova lista:",
   rename_list_prompt: "Renomear lista para:",
+  categories: "Categorias",
+  reorder_categories: "Reordenar categorias",
+  move_up: "Mover para cima",
+  move_down: "Mover para baixo",
+  no_categories: "Ainda sem categorias. Adicione primeiro um artigo com categoria.",
 };
 
 const NL: Dict = {
@@ -360,6 +390,11 @@ const NL: Dict = {
   delete_list_confirm: "Deze lijst en al haar items verwijderen? Na synchronisatie kunnen anderen dit niet ongedaan maken.",
   list_name_prompt: "Naam van de nieuwe lijst:",
   rename_list_prompt: "Lijst hernoemen naar:",
+  categories: "Categorie\u00ebn",
+  reorder_categories: "Categorie\u00ebn herordenen",
+  move_up: "Omhoog",
+  move_down: "Omlaag",
+  no_categories: "Nog geen categorie\u00ebn. Voeg eerst een item met een categorie toe.",
 };
 
 const PL: Dict = {
@@ -411,6 +446,11 @@ const PL: Dict = {
   delete_list_confirm: "Usun\u0105\u0107 t\u0119 list\u0119 i wszystkie jej artyku\u0142y? Po synchronizacji inni nie b\u0119d\u0105 mogli tego cofn\u0105\u0107.",
   list_name_prompt: "Nazwa nowej listy:",
   rename_list_prompt: "Zmie\u0144 nazw\u0119 listy na:",
+  categories: "Kategorie",
+  reorder_categories: "Zmie\u0144 kolejno\u015b\u0107 kategorii",
+  move_up: "W g\u00f3r\u0119",
+  move_down: "W d\u00f3\u0142",
+  no_categories: "Brak kategorii. Najpierw dodaj artyku\u0142 z kategori\u0105.",
 };
 
 const SV: Dict = {
@@ -462,6 +502,11 @@ const SV: Dict = {
   delete_list_confirm: "Ta bort denna lista och alla dess varor? N\u00e4r den synkroniserats kan andra inte \u00e5ngra det.",
   list_name_prompt: "Namn p\u00e5 den nya listan:",
   rename_list_prompt: "Byt namn p\u00e5 listan till:",
+  categories: "Kategorier",
+  reorder_categories: "Ordna om kategorier",
+  move_up: "Flytta upp",
+  move_down: "Flytta ner",
+  no_categories: "Inga kategorier \u00e4nnu. L\u00e4gg f\u00f6rst till en vara med kategori.",
 };
 
 const NB: Dict = {
@@ -513,6 +558,11 @@ const NB: Dict = {
   delete_list_confirm: "Slette denne listen og alle varene? N\u00e5r den er synkronisert, kan andre ikke angre det.",
   list_name_prompt: "Navn p\u00e5 den nye listen:",
   rename_list_prompt: "Gi listen nytt navn:",
+  categories: "Kategorier",
+  reorder_categories: "Endre rekkef\u00f8lge p\u00e5 kategorier",
+  move_up: "Flytt opp",
+  move_down: "Flytt ned",
+  no_categories: "Ingen kategorier enn\u00e5. Legg f\u00f8rst til en vare med kategori.",
 };
 
 const TABLES: Record<string, Dict> = {

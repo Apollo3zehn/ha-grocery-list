@@ -49,6 +49,7 @@ WS_RESTORE_ARCHIVED = f"{DOMAIN}/restore_archived"
 WS_CREATE_LIST = f"{DOMAIN}/create_list"
 WS_RENAME_LIST = f"{DOMAIN}/rename_list"
 WS_DELETE_LIST = f"{DOMAIN}/delete_list"
+WS_REORDER_CATEGORIES = f"{DOMAIN}/reorder_categories"
 WS_UNDO = f"{DOMAIN}/undo"
 WS_REDO = f"{DOMAIN}/redo"
 WS_SYNC = f"{DOMAIN}/sync"
@@ -94,6 +95,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_create_list)
     websocket_api.async_register_command(hass, ws_rename_list)
     websocket_api.async_register_command(hass, ws_delete_list)
+    websocket_api.async_register_command(hass, ws_reorder_categories)
     websocket_api.async_register_command(hass, ws_undo)
     websocket_api.async_register_command(hass, ws_redo)
     websocket_api.async_register_command(hass, ws_sync)
@@ -411,6 +413,35 @@ def ws_delete_list(
         )
         return
     connection.send_result(msg["id"], {"deleted": msg["slug"]})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_REORDER_CATEGORIES,
+        vol.Required("entry_id"): str,
+        vol.Required("slug"): str,
+        vol.Required("order"): [str],
+    }
+)
+@callback
+def ws_reorder_categories(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Set the display order of a list's named categories."""
+    coordinator = _require_coordinator(hass, connection, msg)
+    if coordinator is None:
+        return
+    state = coordinator.async_reorder_categories(msg["slug"], msg["order"])
+    if state is None:
+        connection.send_error(
+            msg["id"], websocket_api.const.ERR_NOT_FOUND, "List not found"
+        )
+        return
+    connection.send_result(
+        msg["id"], {"slug": state.slug, "category_order": state.ordered_categories()}
+    )
 
 
 # ---------------------------------------------------------------------------

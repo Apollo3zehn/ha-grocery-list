@@ -390,26 +390,29 @@ export class GroceryListCard extends LitElement {
     const unchecked = list.items.filter((i) => !i.checked);
     const checked = list.items.filter((i) => i.checked);
     return html`
-      ${this._renderCategoryGroups(unchecked, list.slug, t)}
+      ${this._renderCategoryGroups(unchecked, list, t)}
       ${
         checked.length
           ? html`<div class="gl-checked-section">
               <div class="gl-checked-divider">${t("checked_section")}</div>
-              ${this._renderCategoryGroups(checked, list.slug, t)}
+              ${this._renderCategoryGroups(checked, list, t)}
             </div>`
           : nothing
       }
     `;
   }
 
-  // Render a set of items grouped by category name, ordered alphabetically
-  // (uncategorized last). Used for both the active and checked sections.
+  // Render a set of items grouped by category name. Categories follow the
+  // list's saved display order (``category_order``); any category not present
+  // in that order is appended alphabetically, and uncategorized is always last.
+  // Used for both the active and checked sections.
   private _renderCategoryGroups(
     items: Item[],
-    slug: string,
+    list: ListSnapshot,
     t: (k: string) => string
   ): TemplateResult {
     if (!items.length) return html``;
+    const slug = list.slug;
     const groups = new Map<string, Item[]>();
     for (const it of items) {
       const key = it.category ?? NO_CAT;
@@ -417,9 +420,15 @@ export class GroceryListCard extends LitElement {
       if (arr) arr.push(it);
       else groups.set(key, [it]);
     }
+    const order = list.category_order ?? [];
+    const rank = new Map<string, number>();
+    order.forEach((c, i) => rank.set(c, i));
     const keys = [...groups.keys()].sort((a, b) => {
       if (a === NO_CAT) return 1;
       if (b === NO_CAT) return -1;
+      const ra = rank.has(a) ? rank.get(a)! : Infinity;
+      const rb = rank.has(b) ? rank.get(b)! : Infinity;
+      if (ra !== rb) return ra - rb;
       return a.localeCompare(b);
     });
     return html`
@@ -656,6 +665,8 @@ export class GroceryListCard extends LitElement {
 
   private _renderSettings(t: (k: string) => string): TemplateResult {
     const lists = this._snapshot?.lists ?? [];
+    const activeList = this._activeList();
+    const catOrder = activeList?.category_order ?? [];
     return html`
       <div
         class="gl-overlay"
@@ -695,9 +706,64 @@ export class GroceryListCard extends LitElement {
               </button>
             </div>
           </div>
+
+          <div class="gl-settings-section">
+            <div class="gl-section-title">${t("categories")}</div>
+            ${activeList && catOrder.length
+              ? html`<ul class="gl-catlist">
+                  ${catOrder.map((c, i) =>
+                    this._renderCategoryRow(
+                      activeList.slug,
+                      c,
+                      i,
+                      catOrder.length,
+                      t
+                    )
+                  )}
+                </ul>`
+              : html`<div class="gl-empty">${t("no_categories")}</div>`}
+          </div>
         </div>
       </div>
     `;
+  }
+
+  private _renderCategoryRow(
+    slug: string,
+    name: string,
+    index: number,
+    total: number,
+    t: (k: string) => string
+  ): TemplateResult {
+    return html`
+      <li class="gl-catrow">
+        <span class="gl-cat-label" style="flex:1">${name}</span>
+        <button
+          class="gl-icon-btn"
+          title=${t("move_up")}
+          ?disabled=${index <= 0}
+          @click=${() => this._moveCategory(slug, index, -1)}
+        >\u2191</button>
+        <button
+          class="gl-icon-btn"
+          title=${t("move_down")}
+          ?disabled=${index >= total - 1}
+          @click=${() => this._moveCategory(slug, index, 1)}
+        >\u2193</button>
+      </li>
+    `;
+  }
+
+  // Swap the category at `index` with its neighbor (`delta` = -1 up, +1 down)
+  // and persist the new order. The backend pushes a fresh snapshot which
+  // re-renders both this list and the grouped items.
+  private _moveCategory(slug: string, index: number, delta: number): void {
+    const order = [...(this._activeList()?.category_order ?? [])];
+    const target = index + delta;
+    if (index < 0 || index >= order.length) return;
+    if (target < 0 || target >= order.length) return;
+    [order[index], order[target]] = [order[target], order[index]];
+    void this._api?.reorderCategories(slug, order);
   }
 
   private _renderListRow(

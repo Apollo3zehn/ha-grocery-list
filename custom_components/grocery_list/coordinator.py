@@ -585,6 +585,47 @@ class GroceryCoordinator:
         return glist
 
     @callback
+    def async_reorder_categories(
+        self, slug: str, order: list[str]
+    ) -> GroceryList | None:
+        """Set the display order of a list's named categories. Records an op.
+
+        ``order`` is a list of category names in the desired display order. Only
+        names that currently have items are honored; unknown names are ignored
+        and any live category omitted from ``order`` is appended alphabetically
+        (via ``ordered_categories``). Uncategorized items always render last and
+        are not part of the order.
+        """
+        glist = self.state.lists.get(slug)
+        if glist is None:
+            return None
+        before = glist.to_dict()
+        live = {it.category for it in glist.items if it.category}
+        # Keep only known, live categories, de-duplicated, preserving request
+        # order; ``ordered_categories`` will append any missing live ones.
+        seen: set[str] = set()
+        cleaned: list[str] = []
+        for name in order:
+            if name in live and name not in seen:
+                cleaned.append(name)
+                seen.add(name)
+        glist.category_order = cleaned
+        # Normalize so the stored order fully covers the live categories.
+        glist.category_order = glist.ordered_categories()
+        self._record_and_schedule(
+            make_action_op(
+                identity=self.identity,
+                entity=ENTITY_LIST,
+                scope=slug,
+                target_id=slug,
+                before=before,
+                after=glist.to_dict(),
+                label="reorder_categories",
+            )
+        )
+        return glist
+
+    @callback
     def async_delete_list(self, slug: str) -> bool:
         """Delete a whole list. The merge-base makes the deletion stick."""
         glist = self.state.lists.get(slug)
@@ -894,6 +935,7 @@ class GroceryCoordinator:
                     "slug": slug,
                     "title": glist.title,
                     "items": [it.to_dict() for it in glist.items],
+                    "category_order": glist.ordered_categories(),
                 }
                 for slug, glist in sorted(self.state.lists.items())
             ],

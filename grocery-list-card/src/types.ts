@@ -18,6 +18,9 @@ export interface ListSnapshot {
   slug: string;
   title: string;
   items: Item[];
+  // Named categories in display order (uncategorized is rendered last and is
+  // not included). Mirrors the backend GroceryList.ordered_categories().
+  category_order: string[];
 }
 
 // A cleared item preserved in the browsable archive (see models.py::ArchivedItem).
