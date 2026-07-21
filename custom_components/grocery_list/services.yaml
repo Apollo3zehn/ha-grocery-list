@@ -355,6 +355,42 @@ rename_category:
       selector:
         text:
 
+get_lists:
+  name: Get lists
+  description: Return all grocery lists with their slugs, titles, and item counts. Returns data.
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      selector:
+        text:
+
+get_items:
+  name: Get items
+  description: Return the items on a grocery list. Returns data.
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      selector:
+        text:
+    slug:
+      name: List
+      description: The list slug (the filename stem, e.g. "rewe").
+      required: true
+      example: rewe
+      selector:
+        text:
+    only_unchecked:
+      name: Only unchecked
+      description: When true, only return items that still need buying.
+      required: false
+      example: true
+      selector:
+        boolean:
+
 undo:
   name: Undo
   description: Undo this instance's most recent action.

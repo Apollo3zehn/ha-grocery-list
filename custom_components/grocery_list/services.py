@@ -19,7 +19,13 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+    callback,
+)
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 
@@ -40,6 +46,8 @@ SERVICE_RENAME_LIST = "rename_list"
 SERVICE_DELETE_LIST = "delete_list"
 SERVICE_REORDER_CATEGORIES = "reorder_categories"
 SERVICE_RENAME_CATEGORY = "rename_category"
+SERVICE_GET_LISTS = "get_lists"
+SERVICE_GET_ITEMS = "get_items"
 SERVICE_UNDO = "undo"
 SERVICE_REDO = "redo"
 SERVICE_SYNC = "sync"
@@ -58,6 +66,7 @@ ATTR_TITLE = "title"
 ATTR_ORDER = "order"
 ATTR_OLD = "old"
 ATTR_NEW = "new"
+ATTR_ONLY_UNCHECKED = "only_unchecked"
 
 _ENTRY_ID_SCHEMA = vol.Schema({vol.Optional(ATTR_ENTRY_ID): cv.string})
 
@@ -148,6 +157,14 @@ _RENAME_CATEGORY_SCHEMA = vol.Schema(
         vol.Required(ATTR_SLUG): cv.string,
         vol.Required(ATTR_OLD): cv.string,
         vol.Required(ATTR_NEW): cv.string,
+    }
+)
+
+_GET_ITEMS_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_ENTRY_ID): cv.string,
+        vol.Required(ATTR_SLUG): cv.string,
+        vol.Optional(ATTR_ONLY_UNCHECKED): cv.boolean,
     }
 )
 
@@ -278,6 +295,40 @@ def async_register(hass: HomeAssistant) -> None:
         coordinator = _resolve_coordinator(hass, call)
         await coordinator.async_sync()
 
+    async def _get_lists(call: ServiceCall) -> ServiceResponse:
+        coordinator = _resolve_coordinator(hass, call)
+        lists = []
+        for slug, glist in sorted(coordinator.state.lists.items()):
+            unchecked = sum(1 for it in glist.items if not it.checked)
+            lists.append(
+                {
+                    "slug": slug,
+                    "title": glist.title,
+                    "total_items": len(glist.items),
+                    "unchecked_items": unchecked,
+                }
+            )
+        return {"lists": lists}
+
+    async def _get_items(call: ServiceCall) -> ServiceResponse:
+        coordinator = _resolve_coordinator(hass, call)
+        slug = call.data[ATTR_SLUG]
+        glist = coordinator.state.lists.get(slug)
+        if glist is None:
+            raise HomeAssistantError(f"No list with slug '{slug}'")
+        only_unchecked = call.data.get(ATTR_ONLY_UNCHECKED, False)
+        items = [
+            it.to_dict()
+            for it in glist.items
+            if not (only_unchecked and it.checked)
+        ]
+        return {
+            "slug": slug,
+            "title": glist.title,
+            "items": items,
+            "category_order": glist.ordered_categories(),
+        }
+
     hass.services.async_register(
         DOMAIN, SERVICE_ADD_ITEM, _add_item, schema=_ADD_ITEM_SCHEMA
     )
@@ -329,6 +380,20 @@ def async_register(hass: HomeAssistant) -> None:
     hass.services.async_register(
         DOMAIN, SERVICE_SYNC, _sync, schema=_ENTRY_ID_SCHEMA
     )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_GET_LISTS,
+        _get_lists,
+        schema=_ENTRY_ID_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_GET_ITEMS,
+        _get_items,
+        schema=_GET_ITEMS_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
 
 
 @callback
@@ -346,6 +411,8 @@ def async_unregister(hass: HomeAssistant) -> None:
         SERVICE_DELETE_LIST,
         SERVICE_REORDER_CATEGORIES,
         SERVICE_RENAME_CATEGORY,
+        SERVICE_GET_LISTS,
+        SERVICE_GET_ITEMS,
         SERVICE_UNDO,
         SERVICE_REDO,
         SERVICE_SYNC,
