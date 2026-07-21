@@ -9,5 +9,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/Apollo3zehn/ha-grocery-list/issues",
   "requirements": ["dulwich>=0.22.1,<2", "paramiko>=3.4.0"],
-  "version": "0.6.2"
+  "version": "1.0.0"
 }
