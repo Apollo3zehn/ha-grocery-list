@@ -432,6 +432,22 @@ function e(e,t,i,s){var n,r=arguments.length,a=r<3?t:null===s?s=Object.getOwnPro
     display: flex;
     justify-content: flex-end;
     gap: 8px;
+    margin-top: 4px;
+  }
+  .gl-dialog-actions .gl-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--gl-primary);
+    color: #fff;
+    line-height: 1.4;
+    min-width: 72px;
+  }
+  .gl-dialog-actions .gl-btn:hover {
+    filter: brightness(1.05);
   }
   .gl-btn-text {
     background: transparent;
