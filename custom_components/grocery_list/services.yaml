@@ -51,6 +51,167 @@ add_item:
       selector:
         text:
 
+update_item:
+  name: Update item
+  description: Change an existing item's name, category, or quantity.
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      selector:
+        text:
+    slug:
+      name: List
+      description: The list slug (the filename stem, e.g. "rewe").
+      required: true
+      example: rewe
+      selector:
+        text:
+    name:
+      name: Item name
+      description: The current name of the item to update.
+      required: true
+      example: Tomatoes
+      selector:
+        text:
+    category:
+      name: Category
+      description: The item's current category (omit to match an uncategorized item by name).
+      required: false
+      selector:
+        text:
+    new_name:
+      name: New name
+      description: New name for the item.
+      required: false
+      example: Cherry tomatoes
+      selector:
+        text:
+    new_category:
+      name: New category
+      description: New category for the item.
+      required: false
+      selector:
+        text:
+    qty_value:
+      name: Quantity value
+      description: New numeric quantity (empty clears the quantity).
+      required: false
+      example: 3
+      selector:
+        number:
+          min: 0
+          step: 0.01
+          mode: box
+    qty_unit:
+      name: Quantity unit
+      description: New unit id (see units.yaml, e.g. "pcs", "kg").
+      required: false
+      example: kg
+      selector:
+        text:
+
+set_checked:
+  name: Set checked
+  description: Check or uncheck an item.
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      selector:
+        text:
+    slug:
+      name: List
+      description: The list slug (the filename stem, e.g. "rewe").
+      required: true
+      example: rewe
+      selector:
+        text:
+    name:
+      name: Item name
+      description: The name of the item.
+      required: true
+      example: Tomatoes
+      selector:
+        text:
+    category:
+      name: Category
+      description: The item's category (omit to match an uncategorized item by name).
+      required: false
+      selector:
+        text:
+    checked:
+      name: Checked
+      description: True to check (mark done), false to uncheck.
+      required: true
+      example: true
+      selector:
+        boolean:
+
+delete_item:
+  name: Delete item
+  description: Remove an item from a list.
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      selector:
+        text:
+    slug:
+      name: List
+      description: The list slug (the filename stem, e.g. "rewe").
+      required: true
+      example: rewe
+      selector:
+        text:
+    name:
+      name: Item name
+      description: The name of the item to delete.
+      required: true
+      example: Tomatoes
+      selector:
+        text:
+    category:
+      name: Category
+      description: The item's category (omit to match an uncategorized item by name).
+      required: false
+      selector:
+        text:
+
+restore_archived:
+  name: Restore archived item
+  description: Restore a previously cleared/archived item back onto its list.
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      selector:
+        text:
+    slug:
+      name: List
+      description: The list slug (the filename stem, e.g. "rewe").
+      required: true
+      example: rewe
+      selector:
+        text:
+    name:
+      name: Item name
+      description: The name of the archived item to restore.
+      required: true
+      example: Tomatoes
+      selector:
+        text:
+    category:
+      name: Category
+      description: The archived item's category (omit to match by name).
+      required: false
+      selector:
+        text:
+
 clear_checked:
   name: Clear checked
   description: Archive and remove all checked items in a list.
@@ -66,6 +227,131 @@ clear_checked:
       description: The list slug to clear.
       required: true
       example: rewe
+      selector:
+        text:
+
+create_list:
+  name: Create list
+  description: Create a new (empty) grocery list.
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      selector:
+        text:
+    title:
+      name: Title
+      description: Display title for the new list.
+      required: true
+      example: Weekly shopping
+      selector:
+        text:
+    slug:
+      name: Slug
+      description: Optional explicit slug (filename stem). Derived from the title when omitted.
+      required: false
+      example: weekly
+      selector:
+        text:
+
+rename_list:
+  name: Rename list
+  description: Change a list's display title (the slug/filename stays stable).
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      selector:
+        text:
+    slug:
+      name: List
+      description: The list slug to rename.
+      required: true
+      example: rewe
+      selector:
+        text:
+    title:
+      name: New title
+      description: The new display title.
+      required: true
+      example: REWE weekly
+      selector:
+        text:
+
+delete_list:
+  name: Delete list
+  description: Delete an entire grocery list.
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      selector:
+        text:
+    slug:
+      name: List
+      description: The list slug to delete.
+      required: true
+      example: rewe
+      selector:
+        text:
+
+reorder_categories:
+  name: Reorder categories
+  description: Set the display order of a list's named categories.
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      selector:
+        text:
+    slug:
+      name: List
+      description: The list slug.
+      required: true
+      example: rewe
+      selector:
+        text:
+    order:
+      name: Order
+      description: Category names in the desired display order.
+      required: true
+      example: '["Produce", "Dairy", "Bakery"]'
+      selector:
+        object:
+
+rename_category:
+  name: Rename category
+  description: Rename a category across all its items in a list.
+  fields:
+    entry_id:
+      name: Entry
+      description: Config entry id. Optional when only one list repository is configured.
+      required: false
+      selector:
+        text:
+    slug:
+      name: List
+      description: The list slug.
+      required: true
+      example: rewe
+      selector:
+        text:
+    old:
+      name: Old name
+      description: The current category name.
+      required: true
+      example: Veg
+      selector:
+        text:
+    new:
+      name: New name
+      description: The new category name.
+      required: true
+      example: Produce
       selector:
         text:
 
