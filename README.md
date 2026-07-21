@@ -5,7 +5,7 @@ Shared, git-synced grocery lists with a mobile-first Lovelace card, right inside
 Lists are stored as plain Markdown in a git repository you control. The integration adds a Lovelace card, structured quantities, categories, per-device undo/redo, and an archive, and syncs across every Home Assistant instance in your household. Git is used only for transport; conflicts are resolved by a semantic three-way merge in Python, so your Markdown files never end up with conflict markers.
 
 <p align="center">
-  <img src="docs/images/card-overview.png" alt="Grocery List card overview" width="420">
+  <img src="https://raw.githubusercontent.com/Apollo3zehn/ha-grocery-list/main/docs/images/card-overview.png" alt="Grocery List card overview" width="420">
 </p>
 
 ---
