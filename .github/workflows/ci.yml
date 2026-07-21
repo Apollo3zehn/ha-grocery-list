@@ -1,19 +1,41 @@
-name: Release
+name: CI
 
-# Tag-driven releases (HACS installs from GitHub releases/tags). Push a
-# semver tag like `v1.2.3` to build the card, stamp the manifest version to
-# match the tag, and publish a GitHub release with a zip of the integration.
+# Single workflow: validation always runs (pushes to main, PRs, and tag
+# pushes); the release job runs only when a semver tag like `v1.2.3` is pushed,
+# and only after validation passes. HACS installs from GitHub releases/tags.
 on:
   push:
+    branches: [main]
     tags:
       - "v*"
-
-permissions:
-  contents: write
+  pull_request:
+  workflow_dispatch:
 
 jobs:
-  release:
+  hassfest:
+    name: Hassfest
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration
+
+  release:
+    name: Release
+    # Only on a pushed semver tag, and only after validation succeeds.
+    needs: [hassfest, hacs]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
