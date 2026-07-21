@@ -62,12 +62,14 @@
           "push_debounce_seconds": "Push-forsinkelse etter siste endring (sekunder)",
           "pull_interval_seconds": "Pull-intervall (sekunder)",
           "archive_retention_days": "Arkivoppbevaring (dager)",
+          "auth_method": "Autentiseringsmetode",
           "ssh_key": "Ny privat SSH-nøkkel",
           "ssh_key_path": "Ny filsti for privat SSH-nøkkel",
           "https_token": "Nytt tilgangstoken"
         },
         "description": "Git-arbeidskatalog (skrivebeskyttet): {git_work_dir}\nListenes basissti i repoet (skrivebeskyttet): {lists_base_path}\n\nLa legitimasjonsfeltene stå tomme for å beholde nåværende verdier.",
         "data_description": {
+          "auth_method": "Bytt mellom SSH og HTTPS. Hvis du endrer dette, oppgi tilhørende legitimasjon nedenfor (eller sørg for at den ble angitt tidligere).",
           "ssh_key": "Lim inn en ny privat nøkkel for å erstatte den lagrede. La stå tomt for å beholde nåværende nøkkel.",
           "ssh_key_path": "Sti til en montert privat nøkkelfil (tillatelser 600). La stå tomt for å beholde nåværende sti.",
           "https_token": "Token med repo-begrenset omfang. La stå tomt for å beholde nåværende token."
@@ -76,7 +78,8 @@
     },
     "error": {
       "clone_failed": "Kunne ikke klone repoet. Sjekk URL og legitimasjon.",
-      "auth_failed": "Autentisering mislyktes. Sjekk SSH-nøkkelen eller tilgangstokenet ditt."
+      "auth_failed": "Autentisering mislyktes. Sjekk SSH-nøkkelen eller tilgangstokenet ditt.",
+      "invalid_url": "Depot-URL-en er ikke gyldig for den valgte autentiseringsmetoden."
     }
   }
 }

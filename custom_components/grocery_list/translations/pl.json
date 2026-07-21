@@ -62,12 +62,14 @@
           "push_debounce_seconds": "Opóźnienie wysyłki po ostatniej zmianie (sekundy)",
           "pull_interval_seconds": "Interwał pobierania (sekundy)",
           "archive_retention_days": "Przechowywanie archiwum (dni)",
+          "auth_method": "Metoda uwierzytelniania",
           "ssh_key": "Nowy prywatny klucz SSH",
           "ssh_key_path": "Nowa ścieżka pliku prywatnego klucza SSH",
           "https_token": "Nowy token dostępu"
         },
         "description": "Katalog roboczy git (tylko do odczytu): {git_work_dir}\nBazowa ścieżka list w repozytorium (tylko do odczytu): {lists_base_path}\n\nPozostaw pola poświadczeń puste, aby zachować bieżące wartości.",
         "data_description": {
+          "auth_method": "Przełączaj między SSH a HTTPS. Jeśli to zmienisz, podaj poniżej odpowiednie poświadczenie (lub upewnij się, że zostało wcześniej ustawione).",
           "ssh_key": "Wklej nowy klucz prywatny, aby zastąpić zapisany. Pozostaw puste, aby zachować bieżący klucz.",
           "ssh_key_path": "Ścieżka do zamontowanego pliku klucza prywatnego (uprawnienia 600). Pozostaw puste, aby zachować bieżącą ścieżkę.",
           "https_token": "Token o zakresie ograniczonym do repozytorium. Pozostaw puste, aby zachować bieżący token."
@@ -76,7 +78,8 @@
     },
     "error": {
       "clone_failed": "Nie można sklonować repozytorium. Sprawdź adres URL i poświadczenia.",
-      "auth_failed": "Uwierzytelnianie nie powiodło się. Sprawdź klucz SSH lub token dostępu."
+      "auth_failed": "Uwierzytelnianie nie powiodło się. Sprawdź klucz SSH lub token dostępu.",
+      "invalid_url": "Adres URL repozytorium jest nieprawidłowy dla wybranej metody uwierzytelniania."
     }
   }
 }

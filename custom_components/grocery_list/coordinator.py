@@ -626,6 +626,46 @@ class GroceryCoordinator:
         return glist
 
     @callback
+    def async_rename_category(
+        self, slug: str, old: str, new: str
+    ) -> GroceryList | None:
+        """Rename a named category across all its items. Records an op.
+
+        Every item whose ``category`` equals ``old`` is reassigned to ``new``
+        and the ``category_order`` entry is updated in place. If ``new`` already
+        exists the two categories merge; ``ordered_categories`` dedupes and
+        reconciles the stored order. Returns ``None`` if the list is unknown;
+        a no-op (blank ``new`` or ``old == new``) returns the list unchanged.
+        """
+        glist = self.state.lists.get(slug)
+        if glist is None:
+            return None
+        new = new.strip()
+        if not old or not new or old == new:
+            return glist
+        before = glist.to_dict()
+        for it in glist.items:
+            if it.category == old:
+                it.category = new
+        glist.category_order = [
+            new if c == old else c for c in glist.category_order
+        ]
+        # Dedupe + reconcile against live categories (handles merges).
+        glist.category_order = glist.ordered_categories()
+        self._record_and_schedule(
+            make_action_op(
+                identity=self.identity,
+                entity=ENTITY_LIST,
+                scope=slug,
+                target_id=slug,
+                before=before,
+                after=glist.to_dict(),
+                label="rename_category",
+            )
+        )
+        return glist
+
+    @callback
     def async_delete_list(self, slug: str) -> bool:
         """Delete a whole list. The merge-base makes the deletion stick."""
         glist = self.state.lists.get(slug)

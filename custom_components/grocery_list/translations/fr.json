@@ -62,12 +62,14 @@
           "push_debounce_seconds": "Délai d'envoi après la dernière modification (secondes)",
           "pull_interval_seconds": "Intervalle de récupération (secondes)",
           "archive_retention_days": "Conservation de l'archive (jours)",
+          "auth_method": "Méthode d'authentification",
           "ssh_key": "Nouvelle clé privée SSH",
           "ssh_key_path": "Nouveau chemin du fichier de clé privée SSH",
           "https_token": "Nouveau jeton d'accès"
         },
-        "description": "Répertoire de travail git (lecture seule) : {git_work_dir}\nChemin de base des listes dans le dépôt (lecture seule) : {lists_base_path}\n\nLaissez les champs d'identifiants vides pour conserver les valeurs actuelles.",
+        "description": "Répertoire de travail git (lecture seule) : {git_work_dir}\nChemin de base des listes dans le dépôt (lecture seule) : {lists_base_path}\n\nLaissez les champs d'identifiants vides pour conserver les valeurs actuelles.",
         "data_description": {
+          "auth_method": "Basculez entre SSH et HTTPS. Si vous modifiez ce paramètre, fournissez l'identifiant correspondant ci-dessous (ou assurez-vous qu'il a été défini précédemment).",
           "ssh_key": "Collez une nouvelle clé privée pour remplacer celle enregistrée. Laissez vide pour conserver la clé actuelle.",
           "ssh_key_path": "Chemin vers un fichier de clé privée monté (permissions 600). Laissez vide pour conserver le chemin actuel.",
           "https_token": "Jeton à portée limitée au dépôt. Laissez vide pour conserver le jeton actuel."
@@ -76,7 +78,8 @@
     },
     "error": {
       "clone_failed": "Impossible de cloner le dépôt. Vérifiez l'URL et les identifiants.",
-      "auth_failed": "Échec de l'authentification. Vérifiez votre clé SSH ou votre jeton d'accès."
+      "auth_failed": "Échec de l'authentification. Vérifiez votre clé SSH ou votre jeton d'accès.",
+      "invalid_url": "L'URL du dépôt n'est pas valide pour la méthode d'authentification sélectionnée."
     }
   }
 }

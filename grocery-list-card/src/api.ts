@@ -116,6 +116,14 @@ export class GroceryApi {
     return this.send("reorder_categories", { slug, order });
   }
 
+  renameCategory(
+    slug: string,
+    oldName: string,
+    newName: string
+  ): Promise<{ slug: string; category_order: string[] }> {
+    return this.send("rename_category", { slug, old: oldName, new: newName });
+  }
+
   undo(): Promise<{ undone: boolean }> {
     return this.send("undo");
   }

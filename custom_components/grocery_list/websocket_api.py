@@ -50,6 +50,7 @@ WS_CREATE_LIST = f"{DOMAIN}/create_list"
 WS_RENAME_LIST = f"{DOMAIN}/rename_list"
 WS_DELETE_LIST = f"{DOMAIN}/delete_list"
 WS_REORDER_CATEGORIES = f"{DOMAIN}/reorder_categories"
+WS_RENAME_CATEGORY = f"{DOMAIN}/rename_category"
 WS_UNDO = f"{DOMAIN}/undo"
 WS_REDO = f"{DOMAIN}/redo"
 WS_SYNC = f"{DOMAIN}/sync"
@@ -96,6 +97,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_rename_list)
     websocket_api.async_register_command(hass, ws_delete_list)
     websocket_api.async_register_command(hass, ws_reorder_categories)
+    websocket_api.async_register_command(hass, ws_rename_category)
     websocket_api.async_register_command(hass, ws_undo)
     websocket_api.async_register_command(hass, ws_redo)
     websocket_api.async_register_command(hass, ws_sync)
@@ -434,6 +436,36 @@ def ws_reorder_categories(
     if coordinator is None:
         return
     state = coordinator.async_reorder_categories(msg["slug"], msg["order"])
+    if state is None:
+        connection.send_error(
+            msg["id"], websocket_api.const.ERR_NOT_FOUND, "List not found"
+        )
+        return
+    connection.send_result(
+        msg["id"], {"slug": state.slug, "category_order": state.ordered_categories()}
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_RENAME_CATEGORY,
+        vol.Required("entry_id"): str,
+        vol.Required("slug"): str,
+        vol.Required("old"): str,
+        vol.Required("new"): str,
+    }
+)
+@callback
+def ws_rename_category(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Rename a named category across all its items on a list."""
+    coordinator = _require_coordinator(hass, connection, msg)
+    if coordinator is None:
+        return
+    state = coordinator.async_rename_category(msg["slug"], msg["old"], msg["new"])
     if state is None:
         connection.send_error(
             msg["id"], websocket_api.const.ERR_NOT_FOUND, "List not found"

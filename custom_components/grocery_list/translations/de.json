@@ -62,12 +62,14 @@
           "push_debounce_seconds": "Push-Verzögerung nach letzter Änderung (Sekunden)",
           "pull_interval_seconds": "Pull-Intervall (Sekunden)",
           "archive_retention_days": "Archiv-Aufbewahrung (Tage)",
+          "auth_method": "Authentifizierungsmethode",
           "ssh_key": "Neuer privater SSH-Schlüssel",
           "ssh_key_path": "Neuer Dateipfad des privaten SSH-Schlüssels",
           "https_token": "Neues Zugriffstoken"
         },
         "description": "Git-Arbeitsverzeichnis (schreibgeschützt): {git_work_dir}\nBasis-Pfad der Listen im Repo (schreibgeschützt): {lists_base_path}\n\nLassen Sie die Anmeldedaten-Felder leer, um die aktuellen Werte beizubehalten.",
         "data_description": {
+          "auth_method": "Wechseln Sie zwischen SSH und HTTPS. Wenn Sie dies ändern, geben Sie unten die passenden Anmeldedaten an (oder stellen Sie sicher, dass sie zuvor gesetzt wurden).",
           "ssh_key": "Fügen Sie einen neuen privaten Schlüssel ein, um den gespeicherten zu ersetzen. Leer lassen, um den aktuellen Schlüssel beizubehalten.",
           "ssh_key_path": "Pfad zu einer eingebundenen privaten Schlüsseldatei (Berechtigungen 600). Leer lassen, um den aktuellen Pfad beizubehalten.",
           "https_token": "Repo-spezifisches, fein abgestuftes Token. Leer lassen, um das aktuelle Token beizubehalten."
@@ -76,7 +78,8 @@
     },
     "error": {
       "clone_failed": "Repository konnte nicht geklont werden. Überprüfen Sie URL und Anmeldedaten.",
-      "auth_failed": "Authentifizierung fehlgeschlagen. Überprüfen Sie Ihren SSH-Schlüssel oder Ihr Zugriffstoken."
+      "auth_failed": "Authentifizierung fehlgeschlagen. Überprüfen Sie Ihren SSH-Schlüssel oder Ihr Zugriffstoken.",
+      "invalid_url": "Die Repository-URL ist für die gewählte Authentifizierungsmethode ungültig."
     }
   }
 }

@@ -63,11 +63,13 @@
           "push_debounce_seconds": "Push delay after last change (seconds)",
           "pull_interval_seconds": "Pull interval (seconds)",
           "archive_retention_days": "Archive retention (days)",
+          "auth_method": "Authentication method",
           "ssh_key": "New SSH private key",
           "ssh_key_path": "New SSH private key file path",
           "https_token": "New access token"
         },
         "data_description": {
+          "auth_method": "Switch between SSH and HTTPS. If you change this, provide the matching credential below (or ensure it was set previously).",
           "ssh_key": "Paste a new private key to replace the stored one. Leave empty to keep the current key.",
           "ssh_key_path": "Path to a mounted private key file (permissions 600). Leave empty to keep the current path.",
           "https_token": "Repo-scoped fine-grained token. Leave empty to keep the current token."
@@ -76,7 +78,8 @@
     },
     "error": {
       "clone_failed": "Could not clone the repository. Check the URL and credentials.",
-      "auth_failed": "Authentication failed. Check your SSH key or access token."
+      "auth_failed": "Authentication failed. Check your SSH key or access token.",
+      "invalid_url": "The repository URL is not valid for the selected authentication method."
     }
   }
 }

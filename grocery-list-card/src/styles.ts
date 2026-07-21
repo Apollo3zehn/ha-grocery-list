@@ -173,25 +173,34 @@ export const cardStyles = css`
     opacity: 0.85;
   }
   .gl-checked-divider {
-    font-size: 0.72rem;
+    font-size: 0.95rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--gl-muted);
-    margin: 6px 4px 2px;
+    margin: 0 0 2px;
+    padding: 6px 4px 4px;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--gl-card-bg);
   }
 
   .gl-group { margin-top: 4px; }
   .gl-group-title {
-    font-size: 0.78rem;
+    font-size: 1.05rem;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--gl-muted);
-    margin: 8px 4px 2px;
+    letter-spacing: 0.02em;
+    color: var(--gl-text);
+    margin: 0 0 2px;
+    padding: 6px 4px 4px;
     display: flex;
     align-items: center;
     gap: 6px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--gl-card-bg);
   }
 
   ul.gl-items { list-style: none; margin: 0; padding: 0; }

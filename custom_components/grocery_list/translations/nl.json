@@ -62,12 +62,14 @@
           "push_debounce_seconds": "Push-vertraging na laatste wijziging (seconden)",
           "pull_interval_seconds": "Pull-interval (seconden)",
           "archive_retention_days": "Archiefbewaring (dagen)",
+          "auth_method": "Authenticatiemethode",
           "ssh_key": "Nieuwe privé-SSH-sleutel",
           "ssh_key_path": "Nieuw bestandspad van privé-SSH-sleutel",
           "https_token": "Nieuw toegangstoken"
         },
         "description": "Git-werkmap (alleen-lezen): {git_work_dir}\nBasispad van lijsten in repo (alleen-lezen): {lists_base_path}\n\nLaat de inloggegevensvelden leeg om de huidige waarden te behouden.",
         "data_description": {
+          "auth_method": "Wissel tussen SSH en HTTPS. Als u dit wijzigt, geef dan hieronder de bijbehorende inloggegevens op (of zorg dat deze eerder zijn ingesteld).",
           "ssh_key": "Plak een nieuwe privésleutel om de opgeslagen sleutel te vervangen. Laat leeg om de huidige sleutel te behouden.",
           "ssh_key_path": "Pad naar een gekoppeld privésleutelbestand (rechten 600). Laat leeg om het huidige pad te behouden.",
           "https_token": "Repo-specifiek token. Laat leeg om het huidige token te behouden."
@@ -76,7 +78,8 @@
     },
     "error": {
       "clone_failed": "Kon de repository niet klonen. Controleer de URL en inloggegevens.",
-      "auth_failed": "Verificatie mislukt. Controleer uw SSH-sleutel of toegangstoken."
+      "auth_failed": "Verificatie mislukt. Controleer uw SSH-sleutel of toegangstoken.",
+      "invalid_url": "De repository-URL is niet geldig voor de geselecteerde authenticatiemethode."
     }
   }
 }

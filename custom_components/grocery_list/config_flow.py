@@ -329,6 +329,11 @@ class GroceryListOptionsFlow(config_entries.OptionsFlow):
                 CONF_PULL_INTERVAL: user_input[CONF_PULL_INTERVAL],
             }
 
+            # The auth method may be changed here; fall back to the stored one.
+            method = user_input.get(
+                CONF_AUTH_METHOD, data.get(CONF_AUTH_METHOD, AUTH_SSH)
+            )
+
             # Normalize submitted credentials; blank => keep existing.
             _raw_key = user_input.get(CONF_SSH_KEY) or ""
             _key = _raw_key.replace("\r\n", "\n").strip("\n \t")
@@ -336,6 +341,7 @@ class GroceryListOptionsFlow(config_entries.OptionsFlow):
             _token = (user_input.get(CONF_HTTPS_TOKEN) or "").strip()
 
             new_data = dict(data)
+            new_data[CONF_AUTH_METHOD] = method
             if _key:
                 new_data[CONF_SSH_KEY] = _key
             if _key_path:
@@ -344,8 +350,9 @@ class GroceryListOptionsFlow(config_entries.OptionsFlow):
                 new_data[CONF_HTTPS_TOKEN] = _token
 
             # Re-validate by test-clone with the effective credentials so we
-            # never persist unusable material (mirrors initial setup).
-            method = new_data.get(CONF_AUTH_METHOD, AUTH_SSH)
+            # never persist unusable material (mirrors initial setup). When the
+            # user switches auth method, the credentials for the newly-selected
+            # method must be present (either just entered or previously stored).
             creds = GitCredentials(
                 method=method,
                 ssh_key_data=(new_data.get(CONF_SSH_KEY) or "") or None,
@@ -354,15 +361,18 @@ class GroceryListOptionsFlow(config_entries.OptionsFlow):
             )
             url = new_data[CONF_REPO_URL]
             branch = new_data.get(CONF_BRANCH, DEFAULT_BRANCH)
-            result = await self._async_validate_clone(url, creds, branch)
-            if result is not None:
-                errors["base"] = result
+            if not validate_url_for_method(url, method):
+                errors["base"] = "invalid_url"
             else:
-                if new_data != dict(data):
-                    self.hass.config_entries.async_update_entry(
-                        self._entry, data=new_data
-                    )
-                return self.async_create_entry(title="", data=new_options)
+                result = await self._async_validate_clone(url, creds, branch)
+                if result is not None:
+                    errors["base"] = result
+                else:
+                    if new_data != dict(data):
+                        self.hass.config_entries.async_update_entry(
+                            self._entry, data=new_data
+                        )
+                    return self.async_create_entry(title="", data=new_options)
 
         method = data.get(CONF_AUTH_METHOD, AUTH_SSH)
         schema_dict: dict[Any, Any] = {
@@ -374,21 +384,20 @@ class GroceryListOptionsFlow(config_entries.OptionsFlow):
                 CONF_PULL_INTERVAL,
                 default=opts.get(CONF_PULL_INTERVAL, DEFAULT_PULL_INTERVAL),
             ): vol.All(int, vol.Range(min=30, max=86400)),
+            vol.Required(
+                CONF_AUTH_METHOD, default=method
+            ): vol.In([AUTH_SSH, AUTH_HTTPS]),
         }
-        # Offer only the credential fields relevant to the auth method.
-        if method == AUTH_SSH:
-            schema_dict[vol.Optional(CONF_SSH_KEY, default="")] = TextSelector(
-                TextSelectorConfig(
-                    multiline=True, type=TextSelectorType.TEXT
-                )
-            )
-            schema_dict[vol.Optional(CONF_SSH_KEY_PATH, default="")] = str
-        else:
-            schema_dict[vol.Optional(CONF_HTTPS_TOKEN, default="")] = (
-                TextSelector(
-                    TextSelectorConfig(type=TextSelectorType.PASSWORD)
-                )
-            )
+        # Expose all credential fields so the user can switch auth method and
+        # supply the matching credential. Blank fields keep the stored value;
+        # only the credential(s) for the selected method are used at validation.
+        schema_dict[vol.Optional(CONF_SSH_KEY, default="")] = TextSelector(
+            TextSelectorConfig(multiline=True, type=TextSelectorType.TEXT)
+        )
+        schema_dict[vol.Optional(CONF_SSH_KEY_PATH, default="")] = str
+        schema_dict[vol.Optional(CONF_HTTPS_TOKEN, default="")] = TextSelector(
+            TextSelectorConfig(type=TextSelectorType.PASSWORD)
+        )
 
         return self.async_show_form(
             step_id="init",

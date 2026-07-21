@@ -62,12 +62,14 @@
           "push_debounce_seconds": "Ritardo di invio dopo l'ultima modifica (secondi)",
           "pull_interval_seconds": "Intervallo di recupero (secondi)",
           "archive_retention_days": "Conservazione dell'archivio (giorni)",
+          "auth_method": "Metodo di autenticazione",
           "ssh_key": "Nuova chiave privata SSH",
           "ssh_key_path": "Nuovo percorso del file della chiave privata SSH",
           "https_token": "Nuovo token di accesso"
         },
         "description": "Directory di lavoro git (sola lettura): {git_work_dir}\nPercorso base delle liste nel repository (sola lettura): {lists_base_path}\n\nLascia vuoti i campi delle credenziali per mantenere i valori attuali.",
         "data_description": {
+          "auth_method": "Alterna tra SSH e HTTPS. Se lo modifichi, fornisci la credenziale corrispondente qui sotto (o assicurati che sia stata impostata in precedenza).",
           "ssh_key": "Incolla una nuova chiave privata per sostituire quella memorizzata. Lascia vuoto per mantenere la chiave attuale.",
           "ssh_key_path": "Percorso di un file di chiave privata montato (permessi 600). Lascia vuoto per mantenere il percorso attuale.",
           "https_token": "Token con ambito limitato al repository. Lascia vuoto per mantenere il token attuale."
@@ -76,7 +78,8 @@
     },
     "error": {
       "clone_failed": "Impossibile clonare il repository. Controlla l'URL e le credenziali.",
-      "auth_failed": "Autenticazione non riuscita. Controlla la chiave SSH o il token di accesso."
+      "auth_failed": "Autenticazione non riuscita. Controlla la chiave SSH o il token di accesso.",
+      "invalid_url": "L'URL del repository non è valido per il metodo di autenticazione selezionato."
     }
   }
 }

@@ -750,8 +750,31 @@ export class GroceryListCard extends LitElement {
           ?disabled=${index >= total - 1}
           @click=${() => this._moveCategory(slug, index, 1)}
         >\u2193</button>
+        <button
+          class="gl-icon-btn"
+          title=${t("rename_category")}
+          @click=${() => this._renameCategoryPrompt(slug, name, t)}
+        >\u270e</button>
       </li>
     `;
+  }
+
+  private async _renameCategoryPrompt(
+    slug: string,
+    name: string,
+    t: (k: string) => string
+  ): Promise<void> {
+    const next = await this._showPrompt({
+      title: t("rename_category"),
+      message: t("rename_category_prompt"),
+      initial: name,
+      confirmLabel: t("save"),
+      cancelLabel: t("cancel"),
+    });
+    if (next === null) return;
+    const newName = next.trim();
+    if (!newName || newName === name) return;
+    void this._api?.renameCategory(slug, name, newName);
   }
 
   // Swap the category at `index` with its neighbor (`delta` = -1 up, +1 down)

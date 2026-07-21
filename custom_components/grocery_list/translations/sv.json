@@ -62,12 +62,14 @@
           "push_debounce_seconds": "Push-fördröjning efter senaste ändring (sekunder)",
           "pull_interval_seconds": "Hämtningsintervall (sekunder)",
           "archive_retention_days": "Arkivbevarande (dagar)",
+          "auth_method": "Autentiseringsmetod",
           "ssh_key": "Ny privat SSH-nyckel",
           "ssh_key_path": "Ny sökväg till privat SSH-nyckelfil",
           "https_token": "Ny åtkomsttoken"
         },
         "description": "Git-arbetskatalog (skrivskyddad): {git_work_dir}\nListornas bassökväg i repot (skrivskyddad): {lists_base_path}\n\nLämna inloggningsfälten tomma för att behålla nuvarande värden.",
         "data_description": {
+          "auth_method": "Växla mellan SSH och HTTPS. Om du ändrar detta, ange motsvarande inloggningsuppgift nedan (eller se till att den har angetts tidigare).",
           "ssh_key": "Klistra in en ny privat nyckel för att ersätta den lagrade. Lämna tomt för att behålla nuvarande nyckel.",
           "ssh_key_path": "Sökväg till en monterad privat nyckelfil (behörigheter 600). Lämna tomt för att behålla nuvarande sökväg.",
           "https_token": "Token med repo-begränsad omfattning. Lämna tomt för att behålla nuvarande token."
@@ -76,7 +78,8 @@
     },
     "error": {
       "clone_failed": "Kunde inte klona repot. Kontrollera URL och inloggningsuppgifter.",
-      "auth_failed": "Autentisering misslyckades. Kontrollera din SSH-nyckel eller åtkomsttoken."
+      "auth_failed": "Autentisering misslyckades. Kontrollera din SSH-nyckel eller åtkomsttoken.",
+      "invalid_url": "Arkivets URL är inte giltig för den valda autentiseringsmetoden."
     }
   }
 }

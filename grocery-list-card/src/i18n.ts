@@ -59,6 +59,8 @@ const EN: Dict = {
   move_up: "Move up",
   move_down: "Move down",
   no_categories: "No categories yet. Add an item with a category first.",
+  rename_category: "Rename category",
+  rename_category_prompt: "Rename category to:",
 };
 
 const DE: Dict = {
@@ -115,6 +117,8 @@ const DE: Dict = {
   move_up: "Nach oben",
   move_down: "Nach unten",
   no_categories: "Noch keine Kategorien. F\u00fcge zuerst einen Artikel mit Kategorie hinzu.",
+  rename_category: "Kategorie umbenennen",
+  rename_category_prompt: "Kategorie umbenennen in:",
 };
 
 const ES: Dict = {
@@ -171,6 +175,8 @@ const ES: Dict = {
   move_up: "Subir",
   move_down: "Bajar",
   no_categories: "A\u00fan no hay categor\u00edas. A\u00f1ade primero un art\u00edculo con categor\u00eda.",
+  rename_category: "Renombrar categor\u00eda",
+  rename_category_prompt: "Renombrar categor\u00eda a:",
 };
 
 const FR: Dict = {
@@ -227,6 +233,8 @@ const FR: Dict = {
   move_up: "Monter",
   move_down: "Descendre",
   no_categories: "Aucune cat\u00e9gorie pour l'instant. Ajoutez d'abord un article avec une cat\u00e9gorie.",
+  rename_category: "Renommer la cat\u00e9gorie",
+  rename_category_prompt: "Renommer la cat\u00e9gorie en :",
 };
 
 const IT: Dict = {
@@ -283,6 +291,8 @@ const IT: Dict = {
   move_up: "Sposta su",
   move_down: "Sposta gi\u00f9",
   no_categories: "Ancora nessuna categoria. Aggiungi prima un articolo con categoria.",
+  rename_category: "Rinomina categoria",
+  rename_category_prompt: "Rinomina categoria in:",
 };
 
 const PT: Dict = {
@@ -339,6 +349,8 @@ const PT: Dict = {
   move_up: "Mover para cima",
   move_down: "Mover para baixo",
   no_categories: "Ainda sem categorias. Adicione primeiro um artigo com categoria.",
+  rename_category: "Renomear categoria",
+  rename_category_prompt: "Renomear categoria para:",
 };
 
 const NL: Dict = {
@@ -395,6 +407,8 @@ const NL: Dict = {
   move_up: "Omhoog",
   move_down: "Omlaag",
   no_categories: "Nog geen categorie\u00ebn. Voeg eerst een item met een categorie toe.",
+  rename_category: "Categorie hernoemen",
+  rename_category_prompt: "Categorie hernoemen naar:",
 };
 
 const PL: Dict = {
@@ -451,6 +465,8 @@ const PL: Dict = {
   move_up: "W g\u00f3r\u0119",
   move_down: "W d\u00f3\u0142",
   no_categories: "Brak kategorii. Najpierw dodaj artyku\u0142 z kategori\u0105.",
+  rename_category: "Zmie\u0144 nazw\u0119 kategorii",
+  rename_category_prompt: "Zmie\u0144 nazw\u0119 kategorii na:",
 };
 
 const SV: Dict = {
@@ -507,6 +523,8 @@ const SV: Dict = {
   move_up: "Flytta upp",
   move_down: "Flytta ner",
   no_categories: "Inga kategorier \u00e4nnu. L\u00e4gg f\u00f6rst till en vara med kategori.",
+  rename_category: "Byt namn p\u00e5 kategori",
+  rename_category_prompt: "Byt namn p\u00e5 kategori till:",
 };
 
 const NB: Dict = {
@@ -563,6 +581,8 @@ const NB: Dict = {
   move_up: "Flytt opp",
   move_down: "Flytt ned",
   no_categories: "Ingen kategorier enn\u00e5. Legg f\u00f8rst til en vare med kategori.",
+  rename_category: "Gi kategorien nytt navn",
+  rename_category_prompt: "Gi kategorien nytt navn:",
 };
 
 const TABLES: Record<string, Dict> = {
