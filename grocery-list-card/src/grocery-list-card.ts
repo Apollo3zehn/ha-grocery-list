@@ -215,7 +215,7 @@ export class GroceryListCard extends LitElement {
         ${this._renderHeader(t)}
         ${this._snapshot.lists.length > 1 ? this._renderSwitcher() : nothing}
         ${this._renderAddBar(t)}
-        ${list ? this._renderGroups(list, t) : nothing}
+        ${list ? html`<div class="gl-scroll">${this._renderGroups(list, t)}</div>` : nothing}
         ${this._renderFooter(t)}
       </ha-card>
       ${this._settingsOpen ? this._renderSettings(t) : nothing}

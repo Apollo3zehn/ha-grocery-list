@@ -166,6 +166,11 @@ function e(e,t,i,r){var n,s=arguments.length,a=s<3?t:null===r?r=Object.getOwnPro
     border-top: 2px solid var(--gl-divider);
     opacity: 0.85;
   }
+  .gl-scroll {
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+
   .gl-checked-divider {
     font-size: 0.95rem;
     font-weight: 700;
@@ -480,7 +485,7 @@ function e(e,t,i,r){var n,s=arguments.length,a=s<3?t:null===r?r=Object.getOwnPro
         ${this._renderHeader(t)}
         ${this._snapshot.lists.length>1?this._renderSwitcher():G}
         ${this._renderAddBar(t)}
-        ${i?this._renderGroups(i,t):G}
+        ${i?H`<div class="gl-scroll">${this._renderGroups(i,t)}</div>`:G}
         ${this._renderFooter(t)}
       </ha-card>
       ${this._settingsOpen?this._renderSettings(t):G}

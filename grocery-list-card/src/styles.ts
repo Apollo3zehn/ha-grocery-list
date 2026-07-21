@@ -172,6 +172,11 @@ export const cardStyles = css`
     border-top: 2px solid var(--gl-divider);
     opacity: 0.85;
   }
+  .gl-scroll {
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+
   .gl-checked-divider {
     font-size: 0.95rem;
     font-weight: 700;
