@@ -42,6 +42,13 @@ export class GroceryListCard extends LitElement {
   @state() private _editUnit = "";
   @state() private _editCategory: string | null = null;
 
+  // Category names created via the "new category" prompt this session. The
+  // backend derives categories from items, so a freshly-typed category has no
+  // item yet and would otherwise not appear as a selectable option until an
+  // item using it is persisted. We merge these into the option list so the
+  // selection sticks immediately.
+  @state() private _extraCategories: string[] = [];
+
   // New-item draft state (the add bar).
   @state() private _draftName = "";
   @state() private _draftQty = 1;
@@ -51,6 +58,21 @@ export class GroceryListCard extends LitElement {
   // Settings sheet state (lists manager).
   @state() private _settingsOpen = false;
   @state() private _archiveOpen = false;
+
+  // In-card modal dialog (replaces native window.prompt/confirm so the UX is
+  // consistent, themable, and works inside the HA frontend). Exactly one
+  // dialog is shown at a time; the pending promise resolves on confirm/cancel.
+  @state() private _dialog?: {
+    kind: "prompt" | "confirm";
+    title: string;
+    message?: string;
+    placeholder?: string;
+    confirmLabel: string;
+    cancelLabel: string;
+    danger?: boolean;
+    resolve: (value: string | null | boolean) => void;
+  };
+  @state() private _dialogValue = "";
 
   // New-list draft (within the settings sheet).
   @state() private _newListName = "";
@@ -198,6 +220,7 @@ export class GroceryListCard extends LitElement {
       </ha-card>
       ${this._settingsOpen ? this._renderSettings(t) : nothing}
       ${this._archiveOpen ? this._renderArchive(t) : nothing}
+      ${this._dialog ? this._renderDialog() : nothing}
     `;
   }
 
@@ -206,11 +229,19 @@ export class GroceryListCard extends LitElement {
     const list = this._activeList();
     const title = this._config?.title ?? list?.title ?? "Grocery";
     const st = snap.sync_state;
+    // The sync badge and manual-sync button are only meaningful when this
+    // instance is backed by a git remote. In local-only mode the backend
+    // reports sync_state === "local"; hide the git UI entirely in that case.
+    const gitConfigured = st !== "local";
     return html`
       <div class="gl-header">
         <h2 class="gl-title">${title}</h2>
         <div class="gl-toolbar">
-          <span class="gl-badge ${st}">${t("sync_" + st)}</span>
+          ${gitConfigured
+            ? html`<span class="gl-badge ${st}"
+                >${t("git_prefix")}: ${t("sync_" + st)}</span
+              >`
+            : nothing}
           <button
             class="gl-icon-btn"
             title=${t("undo")}
@@ -223,11 +254,13 @@ export class GroceryListCard extends LitElement {
             ?disabled=${!snap.can_redo}
             @click=${() => this._api?.redo()}
           >\u21b7</button>
-          <button
-            class="gl-icon-btn"
-            title=${t("sync")}
-            @click=${() => this._api?.sync()}
-          >\u21bb</button>
+          ${gitConfigured
+            ? html`<button
+                class="gl-icon-btn"
+                title=${t("sync")}
+                @click=${() => this._api?.sync()}
+              >\u21bb</button>`
+            : nothing}
           <button
             class="gl-icon-btn"
             title=${t("view_archive")}
@@ -321,13 +354,14 @@ export class GroceryListCard extends LitElement {
         <select
           class="gl-cat"
           .value=${this._draftCategory ?? NO_CAT}
-          @change=${(e: Event) => {
+          @change=${async (e: Event) => {
             const sel = e.target as HTMLSelectElement;
             const v = sel.value;
             if (v === NEW_CAT) {
-              const name = this._promptNewCategory(t);
-              this._draftCategory = name;
-              sel.value = name ?? NO_CAT;
+              // Revert the visible selection until the dialog resolves.
+              sel.value = this._draftCategory ?? NO_CAT;
+              const name = await this._promptNewCategory(t);
+              if (name) this._draftCategory = name;
             } else {
               this._draftCategory = v === NO_CAT ? null : v;
             }
@@ -496,13 +530,14 @@ export class GroceryListCard extends LitElement {
           <select
             class="gl-cat"
             .value=${this._editCategory ?? NO_CAT}
-            @change=${(e: Event) => {
+            @change=${async (e: Event) => {
               const sel = e.target as HTMLSelectElement;
               const v = sel.value;
               if (v === NEW_CAT) {
-                const name = this._promptNewCategory(t);
-                this._editCategory = name;
-                sel.value = name ?? NO_CAT;
+                // Revert the visible selection until the dialog resolves.
+                sel.value = this._editCategory ?? NO_CAT;
+                const name = await this._promptNewCategory(t);
+                if (name) this._editCategory = name;
               } else {
                 this._editCategory = v === NO_CAT ? null : v;
               }
@@ -535,10 +570,17 @@ export class GroceryListCard extends LitElement {
     `;
   }
 
-  private _clearCheckedConfirm(t: (k: string) => string): void {
+  private async _clearCheckedConfirm(t: (k: string) => string): Promise<void> {
     const list = this._activeList();
     if (!list) return;
-    if (!window.confirm(t("clear_checked_confirm"))) return;
+    const ok = await this._showConfirm({
+      title: t("clear_checked"),
+      message: t("clear_checked_confirm"),
+      confirmLabel: t("delete"),
+      cancelLabel: t("cancel"),
+      danger: true,
+    });
+    if (!ok) return;
     void this._api?.clearChecked(list.slug);
   }
 
@@ -684,16 +726,150 @@ export class GroceryListCard extends LitElement {
   // ----- Helpers ---------------------------------------------------------
 
   private _categories(): string[] {
-    return this._snapshot?.categories ?? [];
+    const set = new Set<string>(this._snapshot?.categories ?? []);
+    for (const c of this._extraCategories) set.add(c);
+    return [...set].sort((a, b) => a.localeCompare(b));
   }
 
-  // Prompt for a new category name (inline creation from the dropdowns).
-  // Returns the trimmed name, or null if cancelled/empty.
-  private _promptNewCategory(t: (k: string) => string): string | null {
-    const raw = window.prompt(t("category_name"));
-    if (raw === null) return null;
-    const name = raw.trim();
-    return name || null;
+  // Remember a newly-typed category so it becomes a selectable option.
+  private _registerCategory(name: string): void {
+    if (!this._extraCategories.includes(name)) {
+      this._extraCategories = [...this._extraCategories, name];
+    }
+  }
+
+  // Prompt for a new category name (inline creation from the dropdowns) via the
+  // in-card dialog. Returns the trimmed name, or null if cancelled/empty. A
+  // successful result is registered so it appears as a selectable option.
+  private async _promptNewCategory(
+    t: (k: string) => string
+  ): Promise<string | null> {
+    const name = await this._showPrompt({
+      title: t("new_category"),
+      placeholder: t("category_name"),
+      confirmLabel: t("save"),
+      cancelLabel: t("cancel"),
+    });
+    if (name) this._registerCategory(name);
+    return name;
+  }
+
+  // ----- In-card dialog (prompt / confirm) ------------------------------
+
+  // Show a text-prompt dialog. Resolves to the trimmed string, or null if the
+  // user cancels or submits an empty value.
+  private _showPrompt(opts: {
+    title: string;
+    message?: string;
+    placeholder?: string;
+    initial?: string;
+    confirmLabel: string;
+    cancelLabel: string;
+  }): Promise<string | null> {
+    this._dialogValue = opts.initial ?? "";
+    return new Promise<string | null>((resolve) => {
+      this._dialog = {
+        kind: "prompt",
+        title: opts.title,
+        message: opts.message,
+        placeholder: opts.placeholder,
+        confirmLabel: opts.confirmLabel,
+        cancelLabel: opts.cancelLabel,
+        resolve: (v) => resolve(typeof v === "string" ? v : null),
+      };
+    });
+  }
+
+  // Show a confirm dialog. Resolves true on confirm, false on cancel.
+  private _showConfirm(opts: {
+    title: string;
+    message?: string;
+    confirmLabel: string;
+    cancelLabel: string;
+    danger?: boolean;
+  }): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      this._dialog = {
+        kind: "confirm",
+        title: opts.title,
+        message: opts.message,
+        confirmLabel: opts.confirmLabel,
+        cancelLabel: opts.cancelLabel,
+        danger: opts.danger,
+        resolve: (v) => resolve(v === true),
+      };
+    });
+  }
+
+  private _dialogConfirm(): void {
+    const d = this._dialog;
+    if (!d) return;
+    this._dialog = undefined;
+    if (d.kind === "prompt") {
+      const name = this._dialogValue.trim();
+      d.resolve(name || null);
+    } else {
+      d.resolve(true);
+    }
+  }
+
+  private _dialogCancel(): void {
+    const d = this._dialog;
+    if (!d) return;
+    this._dialog = undefined;
+    d.resolve(d.kind === "prompt" ? null : false);
+  }
+
+  private _renderDialog(): TemplateResult {
+    const d = this._dialog!;
+    return html`
+      <div
+        class="gl-overlay"
+        @click=${(e: Event) => {
+          if (e.target === e.currentTarget) this._dialogCancel();
+        }}
+      >
+        <div
+          class="gl-dialog"
+          role="dialog"
+          aria-modal="true"
+          @keydown=${(e: KeyboardEvent) => {
+            if (e.key === "Escape") this._dialogCancel();
+            if (e.key === "Enter" && d.kind === "prompt")
+              this._dialogConfirm();
+          }}
+        >
+          <h3 class="gl-dialog-title">${d.title}</h3>
+          ${d.message
+            ? html`<p class="gl-dialog-msg">${d.message}</p>`
+            : nothing}
+          ${d.kind === "prompt"
+            ? html`<input
+                class="gl-dialog-input"
+                .value=${this._dialogValue}
+                placeholder=${d.placeholder ?? ""}
+                @input=${(e: Event) =>
+                  (this._dialogValue = (e.target as HTMLInputElement).value)}
+                autofocus
+              />`
+            : nothing}
+          <div class="gl-dialog-actions">
+            <button
+              class="gl-btn gl-btn-text"
+              @click=${() => this._dialogCancel()}
+            >
+              ${d.cancelLabel}
+            </button>
+            <button
+              class="gl-btn ${d.danger ? "gl-btn-danger" : "gl-btn-primary"}"
+              @click=${() => this._dialogConfirm()}
+            >
+              ${d.confirmLabel}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   private _unitLabel(id: string): string {
@@ -794,19 +970,35 @@ export class GroceryListCard extends LitElement {
     }
   }
 
-  private _renameListPrompt(l: ListSnapshot, t: (k: string) => string): void {
-    const next = window.prompt(t("rename_list_prompt"), l.title);
+  private async _renameListPrompt(
+    l: ListSnapshot,
+    t: (k: string) => string
+  ): Promise<void> {
+    const next = await this._showPrompt({
+      title: t("rename_list"),
+      message: t("rename_list_prompt"),
+      initial: l.title,
+      confirmLabel: t("save"),
+      cancelLabel: t("cancel"),
+    });
     if (next === null) return;
     const title = next.trim();
     if (!title || title === l.title) return;
     void this._api?.renameList(l.slug, title);
   }
 
-  private _deleteListConfirm(
+  private async _deleteListConfirm(
     l: ListSnapshot,
     t: (k: string) => string
-  ): void {
-    if (!window.confirm(t("delete_list_confirm"))) return;
+  ): Promise<void> {
+    const ok = await this._showConfirm({
+      title: t("delete_list"),
+      message: t("delete_list_confirm"),
+      confirmLabel: t("delete"),
+      cancelLabel: t("cancel"),
+      danger: true,
+    });
+    if (!ok) return;
     void this._api?.deleteList(l.slug);
     // If we deleted the active list, fall back to the first remaining one.
     if (this._activeSlug === l.slug) {

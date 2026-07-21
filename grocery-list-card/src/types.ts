@@ -46,7 +46,8 @@ export type SyncState =
   | "pending"
   | "syncing"
   | "offline"
-  | "error";
+  | "error"
+  | "local";
 
 export interface Unit {
   id: string;

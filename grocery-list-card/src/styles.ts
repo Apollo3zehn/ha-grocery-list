@@ -398,4 +398,57 @@ export const cardStyles = css`
     color: var(--gl-muted);
     white-space: nowrap;
   }
+
+  /* In-card dialog (prompt / confirm). Reuses .gl-overlay for the backdrop. */
+  .gl-dialog {
+    background: var(--gl-card-bg);
+    color: var(--gl-text);
+    width: 100%;
+    max-width: 400px;
+    margin: 0 16px;
+    border-radius: var(--gl-radius);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  }
+  .gl-dialog-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+  .gl-dialog-msg {
+    margin: 0;
+    color: var(--gl-muted);
+    font-size: 0.95rem;
+    line-height: 1.4;
+  }
+  .gl-dialog-input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--gl-divider);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: var(--gl-card-bg);
+    color: var(--gl-text);
+    font-size: 1rem;
+  }
+  .gl-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .gl-btn-text {
+    background: transparent;
+    color: var(--gl-text);
+  }
+  .gl-btn-primary {
+    background: var(--gl-primary);
+    color: #fff;
+  }
+  .gl-btn-danger {
+    background: var(--gl-danger);
+    color: #fff;
+  }
 `;

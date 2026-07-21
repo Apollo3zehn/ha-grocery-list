@@ -24,6 +24,7 @@ const EN: Dict = {
   delete: "Delete",
   edit: "Edit",
   empty_list: "Nothing here yet. Add your first item above.",
+  git_prefix: "Git",
   sync_synced: "Synced",
   sync_pending: "Pending",
   sync_syncing: "Syncing\u2026",

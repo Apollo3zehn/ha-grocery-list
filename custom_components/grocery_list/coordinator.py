@@ -153,6 +153,18 @@ class GroceryCoordinator:
             data.get(CONF_BRANCH, DEFAULT_BRANCH),
         )
 
+    def _redacted_repo_url(self) -> str:
+        """Return the configured remote URL with any embedded credentials
+        stripped, safe for logging."""
+        url = self.entry.data.get(CONF_REPO_URL, "") or "(none)"
+        # Strip a userinfo component (user:token@host) from http(s) URLs so
+        # tokens never reach the log.
+        if "://" in url and "@" in url:
+            scheme, rest = url.split("://", 1)
+            rest = rest.split("@", 1)[1]
+            url = f"{scheme}://{rest}"
+        return url
+
     async def async_setup(self) -> None:
         """Clone-or-open the repo, load state, and start timers.
 
@@ -368,11 +380,23 @@ class GroceryCoordinator:
                 )
                 await self._async_set_last_synced(head)
                 self._set_sync_state(SYNC_SYNCED)
-            except GitAuthError:
-                _LOGGER.exception("Grocery List: authentication failed")
+            except GitAuthError as err:
+                _LOGGER.error(
+                    "Grocery List: git authentication failed for %s: %s",
+                    self._redacted_repo_url(),
+                    err,
+                )
                 self._set_sync_state(SYNC_ERROR)
-            except GitBackendError:
-                _LOGGER.warning("Grocery List: sync failed (offline?)")
+            except GitBackendError as err:
+                # Network/transport failure (host unreachable, connection
+                # reset, DNS, slow/hung remote, etc.). Log the underlying git
+                # error at WARNING with the redacted remote so the cause is
+                # diagnosable from the HA log without leaking credentials.
+                _LOGGER.warning(
+                    "Grocery List: sync to %s failed (treating as offline): %s",
+                    self._redacted_repo_url(),
+                    err,
+                )
                 self._set_sync_state(SYNC_OFFLINE)
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("Grocery List: unexpected sync error")
