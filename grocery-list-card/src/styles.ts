@@ -184,7 +184,13 @@ export const cardStyles = css`
     letter-spacing: 0.06em;
     color: var(--gl-muted);
     margin: 0 0 2px;
-    padding: 6px 4px 4px;
+    padding: 0 4px;
+    /* Fixed height so category titles inside the checked section can stick
+       right below it (see .gl-checked-section .gl-group-title top offset). */
+    height: 32px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
     position: sticky;
     top: 0;
     z-index: 3;
@@ -206,6 +212,13 @@ export const cardStyles = css`
     top: 0;
     z-index: 2;
     background: var(--gl-card-bg);
+  }
+  /* Inside the checked section, category titles must stick just below the
+     sticky "CHECKED" divider (its height) instead of at top:0, otherwise the
+     divider (higher z-index) overlaps and hides them. */
+  .gl-checked-section .gl-group-title {
+    top: 32px;
+    z-index: 1;
   }
 
   ul.gl-items { list-style: none; margin: 0; padding: 0; }
@@ -356,6 +369,10 @@ export const cardStyles = css`
     letter-spacing: 0.04em;
     color: var(--gl-muted);
     margin: 4px 0 8px;
+  }
+  .gl-section-title-list {
+    color: var(--gl-accent, var(--primary-color));
+    text-transform: none;
   }
   .gl-cat-new {
     display: flex;

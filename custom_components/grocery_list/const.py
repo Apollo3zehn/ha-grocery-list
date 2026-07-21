@@ -31,8 +31,14 @@ CONF_PULL_INTERVAL = "pull_interval_seconds"
 
 # Sensible defaults
 DEFAULT_PUSH_DEBOUNCE = 60          # commit + push 60s after last change
-DEFAULT_PULL_INTERVAL = 300         # pull every 5 minutes
+DEFAULT_PULL_INTERVAL = 3600        # pull every 60 minutes
 DEFAULT_BRANCH = "main"
+
+# Push retry back-off (used when a push fails, e.g. transient network/rate
+# limit). We keep retrying the unpushed local commit(s) until the push lands,
+# doubling the delay each time up to a ceiling, then hold at the ceiling.
+PUSH_RETRY_INITIAL = 30            # first retry 30s after a failed push
+PUSH_RETRY_MAX = 3600             # cap the back-off at 1 hour
 
 # Repo layout (paths within the synced git repo). Only ``lists/*.md`` are
 # tracked; there is no sync metadata (tombstones/timestamps/ids) on disk.

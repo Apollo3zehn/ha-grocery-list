@@ -54,6 +54,8 @@ from .const import (
     DEFAULT_PULL_INTERVAL,
     DEFAULT_PUSH_DEBOUNCE,
     DOMAIN,
+    PUSH_RETRY_INITIAL,
+    PUSH_RETRY_MAX,
     SYNC_ERROR,
     SYNC_LOCAL,
     SYNC_OFFLINE,
@@ -76,6 +78,7 @@ from .oplog import (
     make_action_op,
 )
 from .repo_state import RepoState, merge_repo_states
+from .repo_state import _slug_regex as _list_slug_regex
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -115,6 +118,11 @@ class GroceryCoordinator:
         self._push_unsub: Callable[[], None] | None = None
         self._pull_unsub: Callable[[], None] | None = None
         self._local_write_unsub: Callable[[], None] | None = None
+        # Push-retry back-off state. When a push fails we arm a timer to retry
+        # the already-committed local change(s); the delay doubles each attempt
+        # (capped) and is reset once a push succeeds.
+        self._push_retry_unsub: Callable[[], None] | None = None
+        self._push_retry_delay: int = PUSH_RETRY_INITIAL
         self._listeners: list[Callable[[], None]] = []
 
     # -- option helpers -----------------------------------------------------
@@ -240,6 +248,9 @@ class GroceryCoordinator:
         if self._push_unsub is not None:
             self._push_unsub()
             self._push_unsub = None
+        if self._push_retry_unsub is not None:
+            self._push_retry_unsub()
+            self._push_retry_unsub = None
         if not self.sync_enabled:
             if self._local_write_unsub is not None:
                 self._local_write_unsub()
@@ -331,6 +342,40 @@ class GroceryCoordinator:
         self._push_unsub = None
         await self.async_sync()
 
+    # -- push retry back-off ------------------------------------------------
+
+    @callback
+    def _schedule_push_retry(self) -> None:
+        """Arm (or re-arm) the back-off timer to retry an unpushed commit.
+
+        Called after a transient push failure. The delay starts at
+        ``PUSH_RETRY_INITIAL`` and doubles on each successive failure up to
+        ``PUSH_RETRY_MAX``; :meth:`_cancel_push_retry` resets it on success.
+        """
+        if self._push_retry_unsub is not None:
+            self._push_retry_unsub()
+        delay = self._push_retry_delay
+        _LOGGER.debug(
+            "Grocery List: scheduling push retry in %ss", delay
+        )
+        self._push_retry_unsub = async_call_later(
+            self.hass, delay, self._handle_push_retry
+        )
+        # Double for next time, capped.
+        self._push_retry_delay = min(delay * 2, PUSH_RETRY_MAX)
+
+    @callback
+    def _cancel_push_retry(self) -> None:
+        """Cancel any pending retry and reset the back-off to its initial delay."""
+        if self._push_retry_unsub is not None:
+            self._push_retry_unsub()
+            self._push_retry_unsub = None
+        self._push_retry_delay = PUSH_RETRY_INITIAL
+
+    async def _handle_push_retry(self, _now) -> None:
+        self._push_retry_unsub = None
+        await self.async_sync()
+
     async def _handle_scheduled_pull(self, _now) -> None:
         await self.async_sync()
 
@@ -386,7 +431,16 @@ class GroceryCoordinator:
     # -- the sync flow ------------------------------------------------------
 
     async def async_sync(self) -> None:
-        """Fetch, semantic-merge if remote advanced, commit, and push."""
+        """Fetch, semantic-merge if remote advanced, commit, and push.
+
+        The push is only attempted when our local HEAD is actually ahead of the
+        last-synced commit (i.e. there is something new to push). This avoids
+        contacting the remote on every scheduled pull when nothing changed,
+        which previously produced a push on every interval and could trip a
+        remote rate limit. When a push fails transiently we arm a back-off
+        retry timer (see :meth:`_schedule_push_retry`) rather than silently
+        waiting for the next unrelated trigger.
+        """
         if self._backend is None:
             return
         async with self._sync_lock:
@@ -399,12 +453,18 @@ class GroceryCoordinator:
                 if remote_sha and remote_sha != self.last_synced_commit:
                     await self._async_merge_with_remote(remote_sha)
 
-                await self.hass.async_add_executor_job(self._backend.push)
-
                 head = await self.hass.async_add_executor_job(
                     self._backend.head_commit_sha
                 )
-                await self._async_set_last_synced(head)
+                # Only push when our HEAD is ahead of what the remote already
+                # has (last_synced_commit). A merge above advances HEAD too, so
+                # this also pushes freshly-merged commits.
+                if head is not None and head != self.last_synced_commit:
+                    await self.hass.async_add_executor_job(self._backend.push)
+                    await self._async_set_last_synced(head)
+
+                # Push (if any) succeeded: clear any pending retry back-off.
+                self._cancel_push_retry()
                 self._set_sync_state(SYNC_SYNCED)
             except GitAuthError as err:
                 _LOGGER.error(
@@ -424,17 +484,45 @@ class GroceryCoordinator:
                     err,
                 )
                 self._set_sync_state(SYNC_OFFLINE)
+                # If we have unpushed local commits, keep retrying with
+                # exponential back-off until the push lands.
+                if (
+                    self.last_synced_commit
+                    != await self.hass.async_add_executor_job(
+                        self._backend.head_commit_sha
+                    )
+                ):
+                    self._schedule_push_retry()
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("Grocery List: unexpected sync error")
                 self._set_sync_state(SYNC_ERROR)
 
     async def _async_commit_working_tree(self) -> None:
-        """Serialize current model to files, stage, and commit if changed."""
+        """Serialize current model to files, stage, and commit if changed.
+
+        Also stages deletions for any ``*.md`` list files present in the working
+        tree that no longer correspond to a list in the model, so deleting a
+        list produces a real git removal (otherwise the file lingers in every
+        commit and on the remote, and resurrects on reload or pull).
+        """
         files = self.state.to_files(self._lists_path)
         backend = self._require_backend()
+        lists_path = self._lists_path
+        wanted = set(files.keys())
+        slug_re = _list_slug_regex(lists_path)
 
         def _write_and_commit() -> str | None:
             backend.write_files(files)
+            # Prune stale list files (deletions) so they leave the git tree.
+            # Only files matching the ``<lists_path>/<slug>.md`` layout are
+            # considered, so unrelated repo files are never touched.
+            stale = [
+                rel
+                for rel in backend.list_files(lists_path)
+                if slug_re.match(rel) and rel not in wanted
+            ]
+            if stale:
+                backend.remove_files(stale)
             try:
                 return backend.commit(
                     f"grocery: update ({self.identity})",
@@ -461,7 +549,15 @@ class GroceryCoordinator:
             if not commit_sha:
                 return {}
             files: dict[str, bytes] = {}
-            for rel in self._tracked_paths():
+            # Discover list files from the commit tree itself so lists that were
+            # deleted locally (and thus absent from the in-memory state) are
+            # still read from the merge-base and the remote. Without this the
+            # 3-way merge never sees the deleted list and cannot honor its
+            # deletion, resurrecting it on the next pull.
+            slug_re = _list_slug_regex(self._lists_path)
+            for rel in backend.list_tree_files(commit_sha, self._lists_path):
+                if not slug_re.match(rel):
+                    continue
                 data = backend.read_blob_at(commit_sha, rel)
                 if data is not None:
                     files[rel] = data
@@ -480,9 +576,22 @@ class GroceryCoordinator:
         self.state = merged
 
         merged_files = merged.to_files(self._lists_path)
+        lists_path = self._lists_path
+        wanted = set(merged_files.keys())
+        slug_re = _list_slug_regex(lists_path)
 
         def _write_merge_commit() -> None:
             backend.write_files(merged_files)
+            # Prune list files the merge dropped (deletions that won on merge)
+            # so the merge commit records the removal instead of re-adding the
+            # file. Only ``<lists_path>/<slug>.md`` files are considered.
+            stale = [
+                rel
+                for rel in backend.list_files(lists_path)
+                if slug_re.match(rel) and rel not in wanted
+            ]
+            if stale:
+                backend.remove_files(stale)
             backend.merge_commit(
                 f"grocery: merge remote ({self.identity})",
                 self._author(),
@@ -491,13 +600,6 @@ class GroceryCoordinator:
 
         await self.hass.async_add_executor_job(_write_merge_commit)
         self._notify()
-
-    def _tracked_paths(self) -> list[str]:
-        """All repo-relative paths our model serializes to (for blob reads)."""
-        prefix = self._lists_path
-        if prefix:
-            return [f"{prefix}/{slug}.md" for slug in self.state.lists]
-        return [f"{slug}.md" for slug in self.state.lists]
 
     async def _async_set_last_synced(self, sha: str | None) -> None:
         self.last_synced_commit = sha

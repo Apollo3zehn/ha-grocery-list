@@ -387,6 +387,46 @@ class GitBackend:
                 out.append(rel.replace(os.sep, "/"))
         return out
 
+    def list_tree_files(
+        self, commit_sha: str | None, subdir: str
+    ) -> list[str]:
+        """List repo-relative file paths under ``subdir`` at a given commit.
+
+        Unlike :meth:`list_files` (which walks the working tree), this reads the
+        committed tree so callers can discover files that exist at a commit even
+        if they were removed from the working set (e.g. a locally-deleted list
+        still present at the merge-base or on the remote). ``subdir`` empty means
+        the repo root. Only immediate entries of ``subdir`` are returned (list
+        files live in a single flat directory).
+        """
+        if not commit_sha:
+            return []
+        repo = self.repo
+        try:
+            commit = repo[commit_sha.encode()]
+        except KeyError:
+            return []
+        tree = repo[commit.tree]
+        prefix = subdir.strip("/")
+        cur = tree
+        if prefix:
+            for part in prefix.split("/"):
+                name = part.encode()
+                if not isinstance(cur, Tree) or name not in cur:
+                    return []
+                _mode, sha = cur[name]
+                cur = repo[sha]
+        if not isinstance(cur, Tree):
+            return []
+        out: list[str] = []
+        for entry in cur.items():
+            name = entry.path.decode()
+            obj = repo[entry.sha]
+            if isinstance(obj, Blob):
+                rel = f"{prefix}/{name}" if prefix else name
+                out.append(rel)
+        return out
+
     # -- write --------------------------------------------------------------
 
     @staticmethod

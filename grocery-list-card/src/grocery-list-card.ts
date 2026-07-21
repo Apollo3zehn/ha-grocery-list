@@ -353,7 +353,6 @@ export class GroceryListCard extends LitElement {
         </select>
         <select
           class="gl-cat"
-          .value=${this._draftCategory ?? NO_CAT}
           @change=${async (e: Event) => {
             const sel = e.target as HTMLSelectElement;
             const v = sel.value;
@@ -367,9 +366,13 @@ export class GroceryListCard extends LitElement {
             }
           }}
         >
-          <option value=${NO_CAT}>${t("uncategorized")}</option>
+          <option value=${NO_CAT} ?selected=${this._draftCategory == null}>
+            ${t("uncategorized")}
+          </option>
           ${this._categories().map(
-            (c) => html`<option value=${c}>${c}</option>`
+            (c) => html`<option value=${c} ?selected=${this._draftCategory === c}>
+              ${c}
+            </option>`
           )}
           <option value=${NEW_CAT}>${t("new_category")}…</option>
         </select>
@@ -538,7 +541,6 @@ export class GroceryListCard extends LitElement {
           </select>
           <select
             class="gl-cat"
-            .value=${this._editCategory ?? NO_CAT}
             @change=${async (e: Event) => {
               const sel = e.target as HTMLSelectElement;
               const v = sel.value;
@@ -552,9 +554,13 @@ export class GroceryListCard extends LitElement {
               }
             }}
           >
-            <option value=${NO_CAT}>${t("uncategorized")}</option>
+            <option value=${NO_CAT} ?selected=${this._editCategory == null}>
+              ${t("uncategorized")}
+            </option>
             ${this._categories().map(
-              (c) => html`<option value=${c}>${c}</option>`
+              (c) => html`<option value=${c} ?selected=${this._editCategory === c}>
+                ${c}
+              </option>`
             )}
             <option value=${NEW_CAT}>${t("new_category")}…</option>
           </select>
@@ -708,7 +714,13 @@ export class GroceryListCard extends LitElement {
           </div>
 
           <div class="gl-settings-section">
-            <div class="gl-section-title">${t("categories")}</div>
+            <div class="gl-section-title">
+              ${t("categories")}${activeList
+                ? html` — <span class="gl-section-title-list"
+                    >${activeList.title}</span
+                  >`
+                : ""}
+            </div>
             ${activeList && catOrder.length
               ? html`<ul class="gl-catlist">
                   ${catOrder.map((c, i) =>
