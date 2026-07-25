@@ -133,6 +133,7 @@ export class GroceryListCard extends LitElement {
     startX: number;
     startY: number;
     startValue: number;
+    previewValue: number;
     unit: string;
   };
 
@@ -544,8 +545,16 @@ export class GroceryListCard extends LitElement {
     if (this._editingId === itemKey(it)) {
       return html`<li class="gl-item">${this._renderEdit(it, slug, t)}</li>`;
     }
+    const swipe = this._qtySwipe;
+    const qtyValue =
+      it.qty &&
+      swipe?.slug === slug &&
+      itemKey(swipe.item) === itemKey(it) &&
+      swipe.unit === it.qty.unit
+        ? swipe.previewValue
+        : it.qty?.value;
     const qty = it.qty
-      ? `${this._fmtNum(it.qty.value)} ${this._unitLabel(it.qty.unit)}`
+      ? `${this._fmtNum(qtyValue ?? it.qty.value)} ${this._unitLabel(it.qty.unit)}`
       : "";
     const quickQty = !!it.qty && this._canQuickAdjustQty(it.qty.unit);
     return html`
@@ -1102,6 +1111,7 @@ export class GroceryListCard extends LitElement {
       startX: e.clientX,
       startY: e.clientY,
       startValue: it.qty?.value ?? 0,
+      previewValue: it.qty?.value ?? 0,
       unit: it.qty.unit,
     };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -1112,7 +1122,15 @@ export class GroceryListCard extends LitElement {
     if (!swipe || swipe.pointerId !== e.pointerId) return;
     const dx = e.clientX - swipe.startX;
     const dy = e.clientY - swipe.startY;
-    if (Math.abs(dx) < 32 || Math.abs(dx) <= Math.abs(dy)) return;
+    const unitStep = this._quickQtyStep(swipe.unit);
+    const isHorizontalSwipe = Math.abs(dx) >= 32 && Math.abs(dx) > Math.abs(dy);
+    const step = unitStep !== undefined && isHorizontalSwipe ? Math.trunc(dx / 32) : 0;
+    const next = this._roundQuickQty(swipe.startValue + step * (unitStep ?? 0));
+    if (next !== swipe.previewValue) {
+      swipe.previewValue = next;
+      this.requestUpdate();
+    }
+    if (!isHorizontalSwipe) return;
     e.preventDefault();
   }
 
@@ -1120,13 +1138,10 @@ export class GroceryListCard extends LitElement {
     const swipe = this._qtySwipe;
     if (!swipe || swipe.pointerId !== e.pointerId) return;
     this._releaseQtyPointer(e);
-    const unitStep = this._quickQtyStep(swipe.unit);
-    const step = Math.trunc((e.clientX - swipe.startX) / 32);
-    if (unitStep !== undefined && step !== 0) {
-      const next = this._roundQuickQty(swipe.startValue + step * unitStep);
-      if (next !== swipe.startValue) this._setQtyValue(swipe.slug, swipe.item, next);
-    }
+    const didChange = swipe.previewValue !== swipe.startValue;
+    if (didChange) this._setQtyValue(swipe.slug, swipe.item, swipe.previewValue);
     this._qtySwipe = undefined;
+    if (!didChange) this.requestUpdate();
   }
 
   private _handleQtyPointerCancel(e: PointerEvent): void {
@@ -1134,6 +1149,7 @@ export class GroceryListCard extends LitElement {
     if (!swipe || swipe.pointerId !== e.pointerId) return;
     this._releaseQtyPointer(e);
     this._qtySwipe = undefined;
+    this.requestUpdate();
   }
 
   private _releaseQtyPointer(e: PointerEvent): void {
