@@ -341,6 +341,7 @@ export const cardStyles = css`
     white-space: nowrap;
   }
   .gl-qty-quick {
+    touch-action: pan-y;
     border: none;
     background: transparent;
     border-radius: 999px;
