@@ -49,7 +49,8 @@ export class GroceryListCard extends LitElement {
   // selection sticks immediately.
   @state() private _extraCategories: string[] = [];
 
-  // New-item draft state (the add bar).
+  // New-item draft state (the add dialog).
+  @state() private _addOpen = false;
   @state() private _draftName = "";
   @state() private _draftQty = 1;
   @state() private _draftUnit = "";
@@ -218,6 +219,7 @@ export class GroceryListCard extends LitElement {
         ${list ? html`<div class="gl-scroll">${this._renderGroups(list, t)}</div>` : nothing}
         ${this._renderFooter(t)}
       </ha-card>
+      ${this._addOpen ? this._renderAddSheet(t) : nothing}
       ${this._settingsOpen ? this._renderSettings(t) : nothing}
       ${this._archiveOpen ? this._renderArchive(t) : nothing}
       ${this._dialog ? this._renderDialog() : nothing}
@@ -312,70 +314,98 @@ export class GroceryListCard extends LitElement {
 
   private _renderAddBar(t: (k: string) => string): TemplateResult {
     return html`
-      <div class="gl-add">
-        <input
-          class="gl-name"
-          .value=${this._draftName}
-          placeholder=${t("add_placeholder")}
-          @input=${(e: Event) =>
-            (this._draftName = (e.target as HTMLInputElement).value)}
-          @keydown=${(e: KeyboardEvent) => {
-            if (e.key === "Enter") this._commitAdd();
-          }}
-        />
-        <button class="gl-add-btn" @click=${() => this._commitAdd()}>
-          ${t("add")}
-        </button>
-      </div>
-      <div class="gl-qtyrow">
-        <div class="gl-stepper">
-          <button @click=${() => this._bumpQty(-1)}>\u2212</button>
-          <input
-            type="number"
-            .value=${String(this._draftQty)}
-            @input=${(e: Event) =>
-              (this._draftQty =
-                parseFloat((e.target as HTMLInputElement).value) || 0)}
-          />
-          <button @click=${() => this._bumpQty(1)}>+</button>
+      <button
+        class="gl-add-fab"
+        title=${t("add")}
+        aria-label=${t("add")}
+        @click=${() => (this._addOpen = true)}
+      >
+        +
+      </button>
+    `;
+  }
+
+  private _renderAddSheet(t: (k: string) => string): TemplateResult {
+    return html`
+      <div
+        class="gl-add-backdrop"
+        @click=${(e: Event) => {
+          if (e.target === e.currentTarget) this._addOpen = false;
+        }}
+      >
+        <div class="gl-add-dialog" @click=${(e: Event) => e.stopPropagation()}>
+          <h3 class="gl-dialog-title">${t("add")}</h3>
+          <div class="gl-add-form">
+            <input
+              class="gl-name"
+              .value=${this._draftName}
+              placeholder=${t("add_placeholder")}
+              @input=${(e: Event) =>
+                (this._draftName = (e.target as HTMLInputElement).value)}
+              @keydown=${(e: KeyboardEvent) => {
+                if (e.key === "Enter") this._commitAdd();
+              }}
+            />
+            <div class="gl-qtyrow">
+              <div class="gl-stepper">
+                <button @click=${() => this._bumpQty(-1)}>\u2212</button>
+                <input
+                  type="number"
+                  .value=${String(this._draftQty)}
+                  @input=${(e: Event) =>
+                    (this._draftQty =
+                      parseFloat((e.target as HTMLInputElement).value) || 0)}
+                />
+                <button @click=${() => this._bumpQty(1)}>+</button>
+              </div>
+              <select
+                class="gl-unit"
+                .value=${this._draftUnit}
+                @change=${(e: Event) =>
+                  (this._draftUnit = (e.target as HTMLSelectElement).value)}
+              >
+                ${this._units.map(
+                  (u) => html`<option value=${u.id}>
+                    ${u.labels[this._lang] ?? u.labels.en ?? u.id}
+                  </option>`
+                )}
+              </select>
+              <select
+                class="gl-cat"
+                @change=${async (e: Event) => {
+                  const sel = e.target as HTMLSelectElement;
+                  const v = sel.value;
+                  if (v === NEW_CAT) {
+                    // Revert the visible selection until the dialog resolves.
+                    sel.value = this._draftCategory ?? NO_CAT;
+                    const name = await this._promptNewCategory(t);
+                    if (name) this._draftCategory = name;
+                  } else {
+                    this._draftCategory = v === NO_CAT ? null : v;
+                  }
+                }}
+              >
+                <option value=${NO_CAT} ?selected=${this._draftCategory == null}>
+                  ${t("uncategorized")}
+                </option>
+                ${this._categories().map(
+                  (c) => html`<option value=${c} ?selected=${this._draftCategory === c}>
+                    ${c}
+                  </option>`
+                )}
+                <option value=${NEW_CAT}>${t("new_category")}…</option>
+              </select>
+            </div>
+            <div class="gl-add-actions">
+              <button class="gl-text-btn" @click=${() => (this._addOpen = false)}>
+                ${t("cancel")}
+              </button>
+              <button class="gl-primary-btn" @click=${() => this._commitAdd()}>
+                ${t("add")}
+              </button>
+            </div>
+          </div>
         </div>
-        <select
-          class="gl-unit"
-          .value=${this._draftUnit}
-          @change=${(e: Event) =>
-            (this._draftUnit = (e.target as HTMLSelectElement).value)}
-        >
-          ${this._units.map(
-            (u) => html`<option value=${u.id}>
-              ${u.labels[this._lang] ?? u.labels.en ?? u.id}
-            </option>`
-          )}
-        </select>
-        <select
-          class="gl-cat"
-          @change=${async (e: Event) => {
-            const sel = e.target as HTMLSelectElement;
-            const v = sel.value;
-            if (v === NEW_CAT) {
-              // Revert the visible selection until the dialog resolves.
-              sel.value = this._draftCategory ?? NO_CAT;
-              const name = await this._promptNewCategory(t);
-              if (name) this._draftCategory = name;
-            } else {
-              this._draftCategory = v === NO_CAT ? null : v;
-            }
-          }}
-        >
-          <option value=${NO_CAT} ?selected=${this._draftCategory == null}>
-            ${t("uncategorized")}
-          </option>
-          ${this._categories().map(
-            (c) => html`<option value=${c} ?selected=${this._draftCategory === c}>
-              ${c}
-            </option>`
-          )}
-          <option value=${NEW_CAT}>${t("new_category")}…</option>
-        </select>
       </div>
     `;
   }
@@ -471,18 +501,15 @@ export class GroceryListCard extends LitElement {
         >
           ${it.checked ? "\u2713" : ""}
         </button>
-        <div
-          class="gl-item-main"
-          @click=${() => this._beginEdit(it)}
-        >
+        <div class="gl-item-main">
           <div class="gl-item-name">${it.name}</div>
           ${qty ? html`<div class="gl-item-qty">${qty}</div>` : nothing}
         </div>
         <button
           class="gl-icon-btn"
-          title=${t("delete")}
-          @click=${() => this._api?.deleteItem(slug, it.category, it.name)}
-        >\u2715</button>
+          title=${t("edit")}
+          @click=${() => this._beginEdit(it)}
+        >✎</button>
       </li>
     `;
   }
@@ -1049,6 +1076,7 @@ export class GroceryListCard extends LitElement {
     this._activeSlug = slug;
     // Reset the name but keep qty/unit/category for fast repeated entry.
     this._draftName = "";
+    this._addOpen = false;
   }
 
   // ----- Settings / list handlers ---------------------------------------

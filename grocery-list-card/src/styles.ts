@@ -101,12 +101,58 @@ export const cardStyles = css`
     color: #fff;
   }
 
-  .gl-add {
-    display: flex;
-    gap: var(--gl-gap);
+  .gl-add-fab {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 4;
+    width: 56px;
+    height: 56px;
+    border: none;
+    border-radius: 50%;
+    background: var(--gl-accent);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+    cursor: pointer;
+    font-size: 2rem;
+    line-height: 1;
+    display: inline-flex;
     align-items: center;
+    justify-content: center;
   }
-  .gl-add input.gl-name {
+  .gl-add-fab:hover { filter: brightness(1.05); }
+  .gl-add-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.35);
+    box-sizing: border-box;
+  }
+  .gl-add-dialog {
+    width: min(460px, 100%);
+    max-width: 460px;
+    padding: 16px;
+    border-radius: calc(var(--gl-radius) + 4px);
+    background: var(--gl-card-bg);
+    color: var(--gl-text);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
+    box-sizing: border-box;
+  }
+  .gl-add-dialog .gl-dialog-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .gl-add-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gl-gap);
+  }
+  .gl-add-form input.gl-name {
     flex: 1 1 auto;
     min-width: 0;
     border: 1px solid var(--gl-divider);
@@ -116,15 +162,34 @@ export const cardStyles = css`
     background: var(--gl-card-bg);
     color: var(--gl-text);
   }
-  .gl-add .gl-add-btn {
-    background: var(--gl-accent);
-    color: #fff;
+  .gl-add-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--gl-gap);
+    margin-top: 14px;
+  }
+  .gl-text-btn,
+  .gl-primary-btn {
     border: none;
     border-radius: var(--gl-radius);
     padding: 10px 16px;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
+  }
+  .gl-text-btn {
+    background: transparent;
+    color: var(--gl-text);
+  }
+  .gl-text-btn:hover { background: rgba(127,127,127,0.12); }
+  .gl-primary-btn {
+    background: var(--gl-accent);
+    color: #fff;
+  }
+  .gl-primary-btn:hover { filter: brightness(1.05); }
+
+  @media (min-width: 520px) {
+    .gl-add-backdrop { align-items: center; }
   }
 
   .gl-qtyrow {
@@ -254,16 +319,26 @@ export const cardStyles = css`
     border-color: var(--gl-accent);
   }
 
-  .gl-item-main { flex: 1 1 auto; min-width: 0; }
+  .gl-item-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
   .gl-item-name {
+    flex: 1 1 auto;
+    min-width: 0;
     font-size: 1rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .gl-item-qty {
+    flex: 0 0 auto;
     font-size: 0.8rem;
     color: var(--gl-muted);
+    white-space: nowrap;
   }
 
   .gl-edit { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; }
