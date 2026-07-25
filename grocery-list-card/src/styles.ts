@@ -336,10 +336,21 @@ export const cardStyles = css`
   }
   .gl-item-qty {
     flex: 0 0 auto;
-    font-size: 0.8rem;
+    font-size: 1rem;
     color: var(--gl-muted);
     white-space: nowrap;
   }
+  .gl-qty-quick {
+    border: none;
+    background: transparent;
+    border-radius: 999px;
+    cursor: pointer;
+    font: inherit;
+    padding: 2px 6px;
+    touch-action: manipulation;
+    user-select: none;
+  }
+  .gl-qty-quick:hover { background: rgba(127,127,127,0.12); }
 
   .gl-edit { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; }
   .gl-edit-row { display: flex; gap: var(--gl-gap); flex: 1 1 auto; }

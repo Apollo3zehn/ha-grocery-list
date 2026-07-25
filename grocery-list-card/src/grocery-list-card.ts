@@ -19,6 +19,8 @@ const NO_CAT = "__none__";
 // Sentinel value for the "create a new category" option in the dropdowns.
 const NEW_CAT = "__new__";
 
+const QUICK_QTY_UNIT_IDS = new Set(["pcs", "pack", "can", "bottle", "bunch"]);
+
 // Composite identity key for an item: mirrors the backend identity_key
 // (category, name) -> `${category ?? ""}|${name}`.
 function itemKey(it: { category: string | null; name: string }): string {
@@ -81,6 +83,8 @@ export class GroceryListCard extends LitElement {
   private _api?: GroceryApi;
   private _unsub?: () => Promise<void>;
   private _subscribedEntry?: string;
+  private _qtyLongPressTimer?: number;
+  private _qtyLongPressFired = false;
 
   setConfig(config: GroceryCardConfig): void {
     // Do NOT throw on a missing entry_id: the Lovelace card picker instantiates
@@ -493,6 +497,7 @@ export class GroceryListCard extends LitElement {
     const qty = it.qty
       ? `${this._fmtNum(it.qty.value)} ${this._unitLabel(it.qty.unit)}`
       : "";
+    const quickQty = !!it.qty && this._canQuickAdjustQty(it.qty.unit);
     return html`
       <li class="gl-item ${it.checked ? "checked" : ""}">
         <button
@@ -503,7 +508,22 @@ export class GroceryListCard extends LitElement {
         </button>
         <div class="gl-item-main">
           <div class="gl-item-name">${it.name}</div>
-          ${qty ? html`<div class="gl-item-qty">${qty}</div>` : nothing}
+          ${qty
+            ? quickQty
+              ? html`<button
+                  class="gl-item-qty gl-qty-quick"
+                  title="Tap: +1. Long tap or right click: -1"
+                  @click=${(e: MouseEvent) => this._handleQtyClick(e, slug, it)}
+                  @contextmenu=${(e: MouseEvent) =>
+                    this._handleQtyContextMenu(e, slug, it)}
+                  @pointerdown=${(e: PointerEvent) =>
+                    this._handleQtyPointerDown(e, slug, it)}
+                  @pointerup=${() => this._clearQtyLongPress()}
+                  @pointercancel=${() => this._clearQtyLongPress()}
+                  @pointerleave=${() => this._clearQtyLongPress()}
+                >${qty}</button>`
+              : html`<div class="gl-item-qty">${qty}</div>`
+            : nothing}
         </div>
         <button
           class="gl-icon-btn"
@@ -541,6 +561,11 @@ export class GroceryListCard extends LitElement {
             title=${t("cancel")}
             @click=${() => this._cancelEdit()}
           >\u2715</button>
+          <button
+            class="gl-icon-btn gl-danger"
+            title=${t("delete")}
+            @click=${() => this._deleteItemConfirm(slug, it, t)}
+          >Del</button>
         </div>
         <div class="gl-qtyrow">
           <div class="gl-stepper">
@@ -1010,6 +1035,54 @@ export class GroceryListCard extends LitElement {
     return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0+$/, "");
   }
 
+  private _canQuickAdjustQty(unit: string): boolean {
+    return QUICK_QTY_UNIT_IDS.has(unit.trim().toLowerCase());
+  }
+
+  private _handleQtyClick(e: MouseEvent, slug: string, it: Item): void {
+    e.preventDefault();
+    e.stopPropagation();
+    if (this._qtyLongPressFired) {
+      this._qtyLongPressFired = false;
+      return;
+    }
+    this._quickAdjustQty(slug, it, 1);
+  }
+
+  private _handleQtyContextMenu(e: MouseEvent, slug: string, it: Item): void {
+    e.preventDefault();
+    e.stopPropagation();
+    if (this._qtyLongPressFired) return;
+    this._quickAdjustQty(slug, it, -1);
+  }
+
+  private _handleQtyPointerDown(e: PointerEvent, slug: string, it: Item): void {
+    this._qtyLongPressFired = false;
+    this._clearQtyLongPress();
+    if (e.pointerType === "mouse") return;
+    this._qtyLongPressTimer = window.setTimeout(() => {
+      this._qtyLongPressTimer = undefined;
+      this._qtyLongPressFired = true;
+      this._quickAdjustQty(slug, it, -1);
+    }, 550);
+  }
+
+  private _clearQtyLongPress(): void {
+    if (this._qtyLongPressTimer === undefined) return;
+    window.clearTimeout(this._qtyLongPressTimer);
+    this._qtyLongPressTimer = undefined;
+  }
+
+  private _quickAdjustQty(slug: string, it: Item, delta: 1 | -1): void {
+    if (!it.qty || !this._canQuickAdjustQty(it.qty.unit)) return;
+    const next = Math.max(0, it.qty.value + delta);
+    if (next === it.qty.value) return;
+    void this._api?.updateItem(slug, it.category, it.name, {
+      qty_value: next,
+      qty_unit: it.qty.unit,
+    });
+  }
+
   private _bumpQty(delta: number): void {
     this._draftQty = Math.max(0, Math.round((this._draftQty + delta) * 100) / 100);
   }
@@ -1032,6 +1105,23 @@ export class GroceryListCard extends LitElement {
 
   private _bumpEditQty(delta: number): void {
     this._editQty = Math.max(0, Math.round((this._editQty + delta) * 100) / 100);
+  }
+
+  private async _deleteItemConfirm(
+    slug: string,
+    it: Item,
+    t: (key: "delete" | "cancel" | "delete_item_confirm") => string,
+  ): Promise<void> {
+    const confirmed = await this._showConfirm({
+      title: t("delete"),
+      message: t("delete_item_confirm"),
+      confirmLabel: t("delete"),
+      cancelLabel: t("cancel"),
+      danger: true,
+    });
+    if (!confirmed) return;
+    this._cancelEdit();
+    void this._api?.deleteItem(slug, it.category, it.name);
   }
 
   private _saveEdit(slug: string, it: Item): void {
