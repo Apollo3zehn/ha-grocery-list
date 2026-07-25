@@ -326,6 +326,11 @@ export const cardStyles = css`
     align-items: baseline;
     gap: 8px;
   }
+  .gl-qty-swipe {
+    cursor: ew-resize;
+    touch-action: pan-y;
+    user-select: none;
+  }
   .gl-item-name {
     flex: 1 1 auto;
     min-width: 0;
@@ -340,19 +345,6 @@ export const cardStyles = css`
     color: var(--gl-muted);
     white-space: nowrap;
   }
-  .gl-qty-quick {
-    touch-action: pan-y;
-    border: none;
-    background: transparent;
-    border-radius: 999px;
-    cursor: pointer;
-    font: inherit;
-    padding: 2px 6px;
-    touch-action: manipulation;
-    user-select: none;
-  }
-  .gl-qty-quick:hover { background: rgba(127,127,127,0.12); }
-
   .gl-edit { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; }
   .gl-edit-row { display: flex; gap: var(--gl-gap); flex: 1 1 auto; }
   .gl-edit-row input {

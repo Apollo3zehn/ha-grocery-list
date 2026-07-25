@@ -131,9 +131,9 @@ export class GroceryListCard extends LitElement {
     item: Item;
     pointerId: number;
     startX: number;
+    startY: number;
     startValue: number;
-    lastValue: number;
-    dragged: boolean;
+    unit: string;
   };
 
   setConfig(config: GroceryCardConfig): void {
@@ -556,24 +556,19 @@ export class GroceryListCard extends LitElement {
         >
           ${it.checked ? "\u2713" : ""}
         </button>
-        <div class="gl-item-main">
-          <div class="gl-item-name">${it.name}</div>
-          ${qty
-            ? quickQty
-                ? html`<button
-                    class="gl-item-qty gl-qty-quick"
-                    title="Tap: +1. Swipe right: +1. Swipe left: -1"
-                    @click=${(e: MouseEvent) => this._handleQtyClick(e, slug, it)}
-                    @contextmenu=${(e: MouseEvent) =>
-                      this._handleQtyContextMenu(e)}
-                    @pointerdown=${(e: PointerEvent) =>
-                      this._handleQtyPointerDown(e, slug, it)}
-                    @pointermove=${(e: PointerEvent) => this._handleQtyPointerMove(e)}
-                    @pointerup=${(e: PointerEvent) => this._handleQtyPointerEnd(e)}
-                    @pointercancel=${(e: PointerEvent) => this._handleQtyPointerEnd(e)}
-                  >${qty}</button>`
-              : html`<div class="gl-item-qty">${qty}</div>`
+        <div
+          class="gl-item-main ${quickQty ? "gl-qty-swipe" : ""}"
+          title=${quickQty
+            ? "Swipe right to increase quantity. Swipe left to decrease quantity."
             : nothing}
+          @pointerdown=${(e: PointerEvent) =>
+            this._handleQtyPointerDown(e, slug, it)}
+          @pointermove=${(e: PointerEvent) => this._handleQtyPointerMove(e)}
+          @pointerup=${(e: PointerEvent) => this._handleQtyPointerEnd(e)}
+          @pointercancel=${(e: PointerEvent) => this._handleQtyPointerCancel(e)}
+        >
+          <div class="gl-item-name">${it.name}</div>
+          ${qty ? html`<div class="gl-item-qty">${qty}</div>` : nothing}
         </div>
         <button
           class="gl-icon-btn"
@@ -1097,32 +1092,17 @@ export class GroceryListCard extends LitElement {
     return Math.max(0, Math.round(value * 100) / 100);
   }
 
-  private _handleQtyClick(e: MouseEvent, slug: string, it: Item): void {
-    e.preventDefault();
-    e.stopPropagation();
-    if (this._qtySwipe?.dragged) {
-      this._qtySwipe = undefined;
-      return;
-    }
-    this._quickAdjustQty(slug, it, 1);
-    this._qtySwipe = undefined;
-  }
-
-  private _handleQtyContextMenu(e: MouseEvent): void {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
   private _handleQtyPointerDown(e: PointerEvent, slug: string, it: Item): void {
-    if (e.button !== 0) return;
+    const unitStep = this._quickQtyStep(it.qty?.unit ?? "");
+    if (e.button !== 0 || !it.qty || unitStep === undefined) return;
     this._qtySwipe = {
       slug,
       item: it,
       pointerId: e.pointerId,
       startX: e.clientX,
+      startY: e.clientY,
       startValue: it.qty?.value ?? 0,
-      lastValue: it.qty?.value ?? 0,
-      dragged: false,
+      unit: it.qty.unit,
     };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
@@ -1130,28 +1110,37 @@ export class GroceryListCard extends LitElement {
   private _handleQtyPointerMove(e: PointerEvent): void {
     const swipe = this._qtySwipe;
     if (!swipe || swipe.pointerId !== e.pointerId) return;
-    const unitStep = this._quickQtyStep(swipe.item.qty?.unit ?? "");
-    if (unitStep === undefined) return;
-    const step = Math.trunc((e.clientX - swipe.startX) / 32);
-    const next = this._roundQuickQty(swipe.startValue + step * unitStep);
-    if (next === swipe.lastValue) return;
-    swipe.dragged = true;
-    swipe.lastValue = next;
-    this._setQtyValue(swipe.slug, swipe.item, next);
+    const dx = e.clientX - swipe.startX;
+    const dy = e.clientY - swipe.startY;
+    if (Math.abs(dx) < 32 || Math.abs(dx) <= Math.abs(dy)) return;
+    e.preventDefault();
   }
 
   private _handleQtyPointerEnd(e: PointerEvent): void {
     const swipe = this._qtySwipe;
     if (!swipe || swipe.pointerId !== e.pointerId) return;
-    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    this._releaseQtyPointer(e);
+    const unitStep = this._quickQtyStep(swipe.unit);
+    const step = Math.trunc((e.clientX - swipe.startX) / 32);
+    if (unitStep !== undefined && step !== 0) {
+      const next = this._roundQuickQty(swipe.startValue + step * unitStep);
+      if (next !== swipe.startValue) this._setQtyValue(swipe.slug, swipe.item, next);
+    }
+    this._qtySwipe = undefined;
   }
 
-  private _quickAdjustQty(slug: string, it: Item, delta: number): void {
-    const unitStep = this._quickQtyStep(it.qty?.unit ?? "");
-    if (!it.qty || unitStep === undefined) return;
-    const next = this._roundQuickQty(it.qty.value + delta * unitStep);
-    if (next === it.qty.value) return;
-    this._setQtyValue(slug, it, next);
+  private _handleQtyPointerCancel(e: PointerEvent): void {
+    const swipe = this._qtySwipe;
+    if (!swipe || swipe.pointerId !== e.pointerId) return;
+    this._releaseQtyPointer(e);
+    this._qtySwipe = undefined;
+  }
+
+  private _releaseQtyPointer(e: PointerEvent): void {
+    const target = e.currentTarget as HTMLElement;
+    if (target.hasPointerCapture(e.pointerId)) {
+      target.releasePointerCapture(e.pointerId);
+    }
   }
 
   private _setQtyValue(slug: string, it: Item, value: number): void {
