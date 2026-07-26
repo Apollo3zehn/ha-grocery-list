@@ -136,6 +136,7 @@ export class GroceryListCard extends LitElement {
     startValue: number;
     previewValue: number;
     unit: string;
+    pulseKey: number;
   };
 
   setConfig(config: GroceryCardConfig): void {
@@ -557,6 +558,9 @@ export class GroceryListCard extends LitElement {
     const qty = it.qty
       ? `${this._fmtNum(qtyValue ?? it.qty.value)} ${this._unitLabel(it.qty.unit)}`
       : "";
+    const qtyPulse = swipe?.slug === slug && itemKey(swipe.item) === itemKey(it) && swipe.pulseKey
+      ? ` gl-qty-pulse gl-qty-pulse-${swipe.pulseKey % 2}`
+      : "";
     const quickQty = !!it.qty && this._canQuickAdjustQty(it.qty.unit);
     return html`
       <li class="gl-item ${it.checked ? "checked" : ""}">
@@ -578,7 +582,7 @@ export class GroceryListCard extends LitElement {
           @pointercancel=${(e: PointerEvent) => this._handleQtyPointerCancel(e)}
         >
           <div class="gl-item-name">${it.name}</div>
-          ${qty ? html`<div class="gl-item-qty">${qty}</div>` : nothing}
+          ${qty ? html`<div class="gl-item-qty${qtyPulse}">${qty}</div>` : nothing}
         </div>
         <button
           class="gl-icon-btn"
@@ -1114,6 +1118,7 @@ export class GroceryListCard extends LitElement {
       startValue: it.qty?.value ?? 0,
       previewValue: it.qty?.value ?? 0,
       unit: it.qty.unit,
+      pulseKey: 0,
     };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
@@ -1128,11 +1133,18 @@ export class GroceryListCard extends LitElement {
     const step = unitStep !== undefined && isHorizontalSwipe ? Math.trunc(dx / 32) : 0;
     const next = this._roundQuickQty(swipe.startValue + step * (unitStep ?? 0));
     if (next !== swipe.previewValue) {
-      this._qtySwipe = { ...swipe, previewValue: next };
+      const pulseKey = swipe.pulseKey + 1;
+      this._qtySwipe = { ...swipe, previewValue: next, pulseKey };
       const qtyEl = (e.currentTarget as HTMLElement).querySelector<HTMLElement>(
         ".gl-item-qty"
       );
-      if (qtyEl) qtyEl.textContent = `${this._fmtNum(next)} ${this._unitLabel(swipe.unit)}`;
+      if (qtyEl) {
+        qtyEl.textContent = `${this._fmtNum(next)} ${this._unitLabel(swipe.unit)}`;
+        qtyEl.classList.remove("gl-qty-pulse-0", "gl-qty-pulse-1");
+        void qtyEl.offsetWidth;
+        qtyEl.classList.add("gl-qty-pulse", `gl-qty-pulse-${pulseKey % 2}`);
+      }
+      this.requestUpdate();
     }
     if (!isHorizontalSwipe) return;
     e.preventDefault();

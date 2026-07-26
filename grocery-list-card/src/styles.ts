@@ -344,6 +344,17 @@ export const cardStyles = css`
     font-size: 1rem;
     color: var(--gl-muted);
     white-space: nowrap;
+    border-radius: 999px;
+    padding: 1px 5px;
+    margin: -1px -5px;
+  }
+  .gl-qty-pulse-0,
+  .gl-qty-pulse-1 {
+    animation: gl-qty-pulse 420ms ease-out;
+  }
+  @keyframes gl-qty-pulse {
+    0%, 100% { background-color: transparent; }
+    45% { background-color: color-mix(in srgb, var(--gl-accent) 18%, transparent); }
   }
   .gl-edit { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; }
   .gl-edit-row { display: flex; gap: var(--gl-gap); flex: 1 1 auto; }
