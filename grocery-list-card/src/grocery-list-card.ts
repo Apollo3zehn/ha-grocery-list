@@ -100,6 +100,8 @@ export class GroceryListCard extends LitElement {
     slug: string;
     item: Item;
     pointerId: number;
+    captureTarget: HTMLElement;
+    cleanup: () => void;
     startX: number;
     startY: number;
     startValue: number;
@@ -551,6 +553,8 @@ export class GroceryListCard extends LitElement {
           @pointermove=${(e: PointerEvent) => this._handleQtyPointerMove(e)}
           @pointerup=${(e: PointerEvent) => this._handleQtyPointerEnd(e)}
           @pointercancel=${(e: PointerEvent) => this._handleQtyPointerCancel(e)}
+          @lostpointercapture=${(e: PointerEvent) =>
+            this._handleQtyLostPointerCapture(e)}
         >
           <div class="gl-item-name">${it.name}</div>
           ${qty ? html`<div class="gl-item-qty">${qty}</div>` : nothing}
@@ -1094,10 +1098,23 @@ export class GroceryListCard extends LitElement {
   private _handleQtyPointerDown(e: PointerEvent, slug: string, it: Item): void {
     const unitStep = this._quickQtyStep(it.qty?.unit ?? "");
     if (e.button !== 0 || !it.qty || unitStep === undefined) return;
+    this._cancelQtySwipe();
+    const captureTarget = e.currentTarget as HTMLElement;
+    const win = this.ownerDocument.defaultView;
+    const onPointerUp = (ev: PointerEvent) => this._handleQtyPointerEnd(ev);
+    const onPointerCancel = (ev: PointerEvent) => this._handleQtyPointerCancel(ev);
+    const cleanup = () => {
+      win?.removeEventListener("pointerup", onPointerUp, true);
+      win?.removeEventListener("pointercancel", onPointerCancel, true);
+    };
+    win?.addEventListener("pointerup", onPointerUp, true);
+    win?.addEventListener("pointercancel", onPointerCancel, true);
     this._qtySwipe = {
       slug,
       item: it,
       pointerId: e.pointerId,
+      captureTarget,
+      cleanup,
       startX: e.clientX,
       startY: e.clientY,
       startValue: it.qty?.value ?? 0,
@@ -1105,7 +1122,7 @@ export class GroceryListCard extends LitElement {
       unit: it.qty.unit,
       pulseKey: 0,
     };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    captureTarget.setPointerCapture(e.pointerId);
   }
 
   private _handleQtyPointerMove(e: PointerEvent): void {
@@ -1138,31 +1155,34 @@ export class GroceryListCard extends LitElement {
   private _handleQtyPointerEnd(e: PointerEvent): void {
     const swipe = this._qtySwipe;
     if (!swipe || swipe.pointerId !== e.pointerId) return;
-    try {
-      this._releaseQtyPointer(e);
-      const didChange = swipe.previewValue !== swipe.startValue;
-      if (didChange) this._setQtyValue(swipe.slug, swipe.item, swipe.previewValue);
-      if (!didChange) this.requestUpdate();
-    } finally {
-      this._qtySwipe = undefined;
-    }
+    const didChange = swipe.previewValue !== swipe.startValue;
+    this._cancelQtySwipe();
+    if (didChange) this._setQtyValue(swipe.slug, swipe.item, swipe.previewValue);
+    if (!didChange) this.requestUpdate();
   }
 
   private _handleQtyPointerCancel(e: PointerEvent): void {
     const swipe = this._qtySwipe;
     if (!swipe || swipe.pointerId !== e.pointerId) return;
-    try {
-      this._releaseQtyPointer(e);
-      this.requestUpdate();
-    } finally {
-      this._qtySwipe = undefined;
-    }
+    this._cancelQtySwipe();
+    this.requestUpdate();
   }
 
-  private _releaseQtyPointer(e: PointerEvent): void {
-    const target = e.currentTarget as HTMLElement;
-    if (target?.hasPointerCapture?.(e.pointerId)) {
-      target.releasePointerCapture(e.pointerId);
+  private _handleQtyLostPointerCapture(e: PointerEvent): void {
+    const swipe = this._qtySwipe;
+    if (!swipe || swipe.pointerId !== e.pointerId) return;
+    swipe.cleanup();
+    this._qtySwipe = undefined;
+    this.requestUpdate();
+  }
+
+  private _cancelQtySwipe(): void {
+    const swipe = this._qtySwipe;
+    if (!swipe) return;
+    this._qtySwipe = undefined;
+    swipe.cleanup();
+    if (swipe.captureTarget.hasPointerCapture?.(swipe.pointerId)) {
+      swipe.captureTarget.releasePointerCapture(swipe.pointerId);
     }
   }
 
