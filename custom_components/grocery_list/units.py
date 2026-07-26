@@ -29,6 +29,7 @@ def load_units() -> list[dict[str, Any]]:
 
     Each entry is ``{"id": str, "default": bool, "labels": {locale: label}}``;
     a label is either a string or ``{"one": str, "other": str}``.
+    ``compact_label`` is optional and only used by compact frontend displays.
     Malformed or missing files yield an empty list rather than raising, so the
     card degrades gracefully (it can still add items without a unit).
     """
@@ -48,6 +49,9 @@ def load_units() -> list[dict[str, Any]]:
                 "id": str(entry["id"]),
                 "default": bool(entry.get("default", False)),
                 "labels": dict(entry.get("labels") or {}),
+                "compact_label": str(entry["compact_label"])
+                if "compact_label" in entry
+                else None,
             }
         )
     return units

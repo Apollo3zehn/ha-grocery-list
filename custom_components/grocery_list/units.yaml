@@ -13,6 +13,7 @@ units:
       de:
         one: Stück
         other: Stück
+    compact_label: x
   - id: g
     labels:
       en: g

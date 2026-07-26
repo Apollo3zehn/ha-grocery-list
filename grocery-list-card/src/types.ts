@@ -73,6 +73,7 @@ export interface Unit {
   id: QuantityUnitId;
   default: boolean;
   labels: Record<string, UnitLabel>;
+  compact_label?: string | null;
 }
 
 export interface GetUnitsResult {

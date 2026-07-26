@@ -527,7 +527,7 @@ export class GroceryListCard extends LitElement {
     const qtyUnit = isSwipingItem ? swipe.unit : it.qty?.unit;
     const qty =
       qtyValue !== undefined && qtyUnit
-        ? `${this._fmtNum(qtyValue)} ${this._unitLabel(qtyUnit, qtyValue)}`
+        ? this._formatQuantity(qtyValue, qtyUnit)
         : "";
     const qtyPulse = swipe?.slug === slug && itemKey(swipe.item) === itemKey(it) && swipe.pulseKey
       ? ` gl-qty-pulse gl-qty-pulse-${swipe.pulseKey % 2}`
@@ -717,7 +717,7 @@ export class GroceryListCard extends LitElement {
     t: (k: string) => string
   ): TemplateResult {
     const qty = a.item.qty
-      ? `${this._fmtNum(a.item.qty.value)} ${this._unitLabel(a.item.qty.unit, a.item.qty.value)}`
+      ? this._formatQuantity(a.item.qty.value, a.item.qty.unit)
       : "";
     return html`
       <li class="gl-archive-row">
@@ -1062,6 +1062,14 @@ export class GroceryListCard extends LitElement {
     if (!label) return id;
     if (typeof label === "string") return label;
     return value === undefined || value === 1 ? label.one : label.other;
+  }
+
+  private _formatQuantity(value: number, unit: string): string {
+    const unitId = this._asQuantityUnitId(unit);
+    const u = unitId ? this._units.find((x) => x.id === unitId) : undefined;
+    const compactLabel = u?.compact_label;
+    if (compactLabel) return `${this._fmtNum(value)}${compactLabel}`;
+    return `${this._fmtNum(value)} ${this._unitLabel(unit, value)}`;
   }
 
   private _asQuantityUnitId(unit: string | null | undefined): QuantityUnitId | undefined {
