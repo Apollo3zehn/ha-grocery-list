@@ -392,7 +392,7 @@ export class GroceryListCard extends LitElement {
                     this._defaultUnit)}
               >
                 ${this._units.map(
-                  (u) => html`<option value=${u.id}>
+                  (u) => html`<option value=${u.id} ?selected=${u.id === this._draftUnit}>
                     ${this._unitLabel(u.id)}
                   </option>`
                 )}
@@ -617,7 +617,7 @@ export class GroceryListCard extends LitElement {
                 this._defaultUnit)}
           >
             ${this._units.map(
-              (u) => html`<option value=${u.id}>
+              (u) => html`<option value=${u.id} ?selected=${u.id === this._editUnit}>
                 ${this._unitLabel(u.id)}
               </option>`
             )}
@@ -1179,7 +1179,7 @@ export class GroceryListCard extends LitElement {
     this._editingId = itemKey(it);
     this._editValue = it.name;
     this._editQty = it.qty?.value ?? 0;
-    this._editUnit = it.qty?.unit ?? this._defaultUnit;
+    this._editUnit = this._asQuantityUnitId(it.qty?.unit) ?? this._defaultUnit;
     this._editCategory = it.category;
   }
 
