@@ -1,4 +1,4 @@
-import { LitElement, html, nothing, type TemplateResult } from "lit";
+import { LitElement, html, nothing, type PropertyValues, type TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { GroceryApi } from "./api";
 import { cardStyles } from "./styles";
@@ -108,6 +108,14 @@ export class GroceryListCard extends LitElement {
     unit: QuantityUnitId;
     pulseKey: number;
   };
+  @state()
+  private _pendingQty?: {
+    slug: string;
+    key: string;
+    value: number;
+    unit: QuantityUnitId;
+    clearTimer: number;
+  };
 
   setConfig(config: GroceryCardConfig): void {
     // Do NOT throw on a missing entry_id: the Lovelace card picker instantiates
@@ -162,8 +170,9 @@ export class GroceryListCard extends LitElement {
     this._teardown();
   }
 
-  updated(changed: Map<string, unknown>): void {
+  protected updated(changed: PropertyValues): void {
     if (changed.has("hass")) this._maybeSubscribe();
+    if (changed.has("_snapshot")) this._reconcilePendingQty();
   }
 
   private get _lang(): string {
@@ -523,8 +532,19 @@ export class GroceryListCard extends LitElement {
     const swipe = this._qtySwipe;
     const isSwipingItem =
       swipe?.slug === slug && itemKey(swipe.item) === itemKey(it);
-    const qtyValue = isSwipingItem ? swipe.previewValue : it.qty?.value;
-    const qtyUnit = isSwipingItem ? swipe.unit : it.qty?.unit;
+    const pendingQty = this._pendingQty;
+    const isPendingQty =
+      pendingQty?.slug === slug && pendingQty.key === itemKey(it);
+    const qtyValue = isSwipingItem
+      ? swipe.previewValue
+      : isPendingQty
+        ? pendingQty.value
+        : it.qty?.value;
+    const qtyUnit = isSwipingItem
+      ? swipe.unit
+      : isPendingQty
+        ? pendingQty.unit
+        : it.qty?.unit;
     const qty =
       qtyValue !== undefined && qtyUnit
         ? this._formatQuantity(qtyValue, qtyUnit)
@@ -1128,6 +1148,12 @@ export class GroceryListCard extends LitElement {
     win?.addEventListener("pointermove", onPointerMove, true);
     win?.addEventListener("pointerup", onPointerUp, true);
     win?.addEventListener("pointercancel", onPointerCancel, true);
+    const pendingQty = this._pendingQty;
+    const activePendingQty =
+      pendingQty?.slug === slug && pendingQty.key === itemKey(it)
+        ? pendingQty
+        : undefined;
+    const startValue = activePendingQty?.value ?? it.qty?.value ?? 1;
     this._qtySwipe = {
       slug,
       item: it,
@@ -1135,9 +1161,9 @@ export class GroceryListCard extends LitElement {
       cleanup,
       startX: e.clientX,
       startY: e.clientY,
-      startValue: it.qty?.value ?? 1,
-      previewValue: it.qty?.value ?? 1,
-      unit,
+      startValue,
+      previewValue: startValue,
+      unit: activePendingQty?.unit ?? unit,
       pulseKey: 0,
     };
   }
@@ -1170,7 +1196,7 @@ export class GroceryListCard extends LitElement {
     if (!swipe || swipe.pointerId !== e.pointerId) return;
     const didChange = swipe.previewValue !== swipe.startValue;
     this._cancelQtySwipe();
-    if (didChange) this._setQtyValue(swipe.slug, swipe.item, swipe.previewValue);
+    if (didChange) this._commitSwipeQty(swipe);
     if (!didChange) this.requestUpdate();
   }
 
@@ -1186,6 +1212,54 @@ export class GroceryListCard extends LitElement {
     if (!swipe) return;
     this._qtySwipe = undefined;
     swipe.cleanup();
+  }
+
+  private _commitSwipeQty(swipe: {
+    slug: string;
+    item: Item;
+    previewValue: number;
+    unit: QuantityUnitId;
+  }): void {
+    this._setPendingQty(swipe.slug, swipe.item, swipe.previewValue, swipe.unit);
+    this._setQtyValue(swipe.slug, swipe.item, swipe.previewValue);
+  }
+
+  private _setPendingQty(
+    slug: string,
+    it: Item,
+    value: number,
+    unit: QuantityUnitId
+  ): void {
+    const key = itemKey(it);
+    this._clearPendingQty();
+    const clearTimer = window.setTimeout(() => {
+      const pending = this._pendingQty;
+      if (pending?.slug === slug && pending.key === key && pending.value === value) {
+        this._clearPendingQty();
+      }
+    }, 4000);
+    this._pendingQty = { slug, key, value, unit, clearTimer };
+  }
+
+  private _reconcilePendingQty(): void {
+    const pending = this._pendingQty;
+    if (!pending) return;
+    const list = this._snapshot?.lists.find((l) => l.slug === pending.slug);
+    const item = list?.items.find((it) => itemKey(it) === pending.key);
+    if (!item) {
+      this._clearPendingQty();
+      return;
+    }
+    if (item.qty?.value === pending.value && item.qty?.unit === pending.unit) {
+      this._clearPendingQty();
+    }
+  }
+
+  private _clearPendingQty(): void {
+    const pending = this._pendingQty;
+    if (!pending) return;
+    window.clearTimeout(pending.clearTimer);
+    this._pendingQty = undefined;
   }
 
   private _setQtyValue(slug: string, it: Item, value: number): void {
