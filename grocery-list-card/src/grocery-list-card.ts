@@ -100,7 +100,6 @@ export class GroceryListCard extends LitElement {
     slug: string;
     item: Item;
     pointerId: number;
-    mainEl: HTMLElement;
     cleanup: () => void;
     startX: number;
     startY: number;
@@ -1100,7 +1099,6 @@ export class GroceryListCard extends LitElement {
     // re-render can leave the pointer retargeted to a detached element, which
     // silently swallows every subsequent click on the card. Instead we drive the
     // whole gesture from window-level listeners and clean them up on end.
-    const mainEl = e.currentTarget as HTMLElement;
     const win = this.ownerDocument.defaultView;
     const onPointerMove = (ev: PointerEvent) => this._handleQtyPointerMove(ev);
     const onPointerUp = (ev: PointerEvent) => this._handleQtyPointerEnd(ev);
@@ -1117,7 +1115,6 @@ export class GroceryListCard extends LitElement {
       slug,
       item: it,
       pointerId: e.pointerId,
-      mainEl,
       cleanup,
       startX: e.clientX,
       startY: e.clientY,
@@ -1139,17 +1136,13 @@ export class GroceryListCard extends LitElement {
     const next = this._roundQuickQty(swipe.startValue + step * (unitStep ?? 0));
     if (next !== swipe.previewValue) {
       const pulseKey = swipe.pulseKey + 1;
+      // Update reactive state only. Lit owns the .gl-item-qty text and the row's
+      // pulse class (see _renderItem), so we must NOT imperatively mutate those
+      // DOM nodes here: doing so corrupts Lit's template part bookkeeping, which
+      // breaks later re-renders (undo of the quantity never repaints) and can
+      // leave sibling rows with stale/broken event bindings (edit/checkbox
+      // clicks stop working after a swipe).
       this._qtySwipe = { ...swipe, previewValue: next, pulseKey };
-      const mainEl = swipe.mainEl;
-      const itemEl = mainEl.closest<HTMLElement>(".gl-item") ?? mainEl;
-      const qtyEl = mainEl.querySelector<HTMLElement>(".gl-item-qty");
-      if (qtyEl) {
-        qtyEl.textContent = `${this._fmtNum(next)} ${this._unitLabel(swipe.unit, next)}`;
-        itemEl.classList.remove("gl-qty-pulse-0", "gl-qty-pulse-1");
-        void itemEl.offsetWidth;
-        itemEl.classList.add("gl-qty-pulse", `gl-qty-pulse-${pulseKey % 2}`);
-      }
-      this.requestUpdate();
     }
     if (!isHorizontalSwipe) return;
     e.preventDefault();
