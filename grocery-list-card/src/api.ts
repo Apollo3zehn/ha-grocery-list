@@ -7,6 +7,7 @@ import type {
   GetUnitsResult,
   HomeAssistant,
   Item,
+  QuantityUnitId,
   Snapshot,
 } from "./types";
 
@@ -43,7 +44,7 @@ export class GroceryApi {
   addItem(
     slug: string,
     name: string,
-    opts: { category?: string | null; qty_value?: number | null; qty_unit?: string | null } = {}
+    opts: { category?: string | null; qty_value?: number | null; qty_unit?: QuantityUnitId | null } = {}
   ): Promise<{ item: Item }> {
     return this.send("add_item", { slug, name, ...opts });
   }
@@ -56,7 +57,7 @@ export class GroceryApi {
       new_name?: string;
       new_category?: string | null;
       qty_value?: number | null;
-      qty_unit?: string | null;
+      qty_unit?: QuantityUnitId | null;
     }
   ): Promise<{ item: Item }> {
     return this.send("update_item", { slug, category, name, ...changes });

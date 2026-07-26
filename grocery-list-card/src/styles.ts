@@ -348,8 +348,8 @@ export const cardStyles = css`
     padding: 1px 5px;
     margin: -1px -5px;
   }
-  .gl-qty-pulse-0,
-  .gl-qty-pulse-1 {
+  .gl-item.gl-qty-pulse-0,
+  .gl-item.gl-qty-pulse-1 {
     animation: gl-qty-pulse 420ms ease-out;
   }
   @keyframes gl-qty-pulse {

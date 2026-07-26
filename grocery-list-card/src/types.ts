@@ -2,9 +2,23 @@
 // (see custom_components/grocery_list/coordinator.py::snapshot and models.py).
 // Keep these in sync with the Python `to_dict()` methods.
 
+export enum QuantityUnitId {
+  Pcs = "pcs",
+  G = "g",
+  Kg = "kg",
+  Ml = "ml",
+  L = "l",
+  Pack = "pack",
+  Bottle = "bottle",
+  Can = "can",
+  Bunch = "bunch",
+}
+
+export const DEFAULT_QUANTITY_UNIT = QuantityUnitId.Pcs;
+
 export interface Quantity {
   value: number;
-  unit: string;
+  unit: QuantityUnitId;
 }
 
 export interface Item {
@@ -53,14 +67,14 @@ export type SyncState =
   | "local";
 
 export interface Unit {
-  id: string;
+  id: QuantityUnitId;
   default: boolean;
   labels: Record<string, string>;
 }
 
 export interface GetUnitsResult {
   units: Unit[];
-  default_unit: string;
+  default_unit: QuantityUnitId;
 }
 
 // Lovelace card config (from the dashboard YAML/UI editor).

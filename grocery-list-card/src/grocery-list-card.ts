@@ -3,6 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { GroceryApi } from "./api";
 import { cardStyles } from "./styles";
 import { makeT, resolveLang } from "./i18n";
+import { DEFAULT_QUANTITY_UNIT, QuantityUnitId } from "./types";
 import type {
   ArchivedItem,
   GetUnitsResult,
@@ -19,49 +20,16 @@ const NO_CAT = "__none__";
 // Sentinel value for the "create a new category" option in the dropdowns.
 const NEW_CAT = "__new__";
 
-const QUICK_QTY_STEPS: Record<string, number> = {
-  pcs: 1,
-  piece: 1,
-  pieces: 1,
-  pack: 1,
-  packs: 1,
-  can: 1,
-  cans: 1,
-  bottle: 1,
-  bottles: 1,
-  bunch: 1,
-  bunches: 1,
-  g: 50,
-  gram: 50,
-  grams: 50,
-  ml: 50,
-  milliliter: 50,
-  milliliters: 50,
-  millilitre: 50,
-  millilitres: 50,
-  kg: 0.05,
-  kilogram: 0.05,
-  kilograms: 0.05,
-  l: 0.05,
-  liter: 0.05,
-  liters: 0.05,
-  litre: 0.05,
-  litres: 0.05,
-  oz: 1,
-  ounce: 1,
-  ounces: 1,
-  lb: 0.25,
-  lbs: 0.25,
-  pound: 0.25,
-  pounds: 0.25,
-  tsp: 1,
-  teaspoon: 1,
-  teaspoons: 1,
-  tbsp: 1,
-  tablespoon: 1,
-  tablespoons: 1,
-  cup: 0.25,
-  cups: 0.25,
+const QUICK_QTY_STEPS: Record<QuantityUnitId, number> = {
+  [QuantityUnitId.Pcs]: 1,
+  [QuantityUnitId.G]: 50,
+  [QuantityUnitId.Kg]: 0.5,
+  [QuantityUnitId.Ml]: 50,
+  [QuantityUnitId.L]: 0.05,
+  [QuantityUnitId.Pack]: 1,
+  [QuantityUnitId.Bottle]: 1,
+  [QuantityUnitId.Can]: 1,
+  [QuantityUnitId.Bunch]: 1,
 };
 
 // Composite identity key for an item: mirrors the backend identity_key
@@ -79,12 +47,12 @@ export class GroceryListCard extends LitElement {
   @state() private _config?: GroceryCardConfig;
   @state() private _snapshot?: Snapshot;
   @state() private _units: Unit[] = [];
-  @state() private _defaultUnit = "pcs";
+  @state() private _defaultUnit = DEFAULT_QUANTITY_UNIT;
   @state() private _activeSlug?: string;
   @state() private _editingId: string | null = null;
   @state() private _editValue = "";
   @state() private _editQty = 0;
-  @state() private _editUnit = "";
+  @state() private _editUnit = DEFAULT_QUANTITY_UNIT;
   @state() private _editCategory: string | null = null;
 
   // Category names created via the "new category" prompt this session. The
@@ -98,7 +66,7 @@ export class GroceryListCard extends LitElement {
   @state() private _addOpen = false;
   @state() private _draftName = "";
   @state() private _draftQty = 1;
-  @state() private _draftUnit = "";
+  @state() private _draftUnit = DEFAULT_QUANTITY_UNIT;
   @state() private _draftCategory: string | null = null;
 
   // Settings sheet state (lists manager).
@@ -210,7 +178,7 @@ export class GroceryListCard extends LitElement {
       const res: GetUnitsResult = await this._api.getUnits();
       this._units = res.units;
       this._defaultUnit = res.default_unit;
-      if (!this._draftUnit) this._draftUnit = res.default_unit;
+      if (this._draftUnit === DEFAULT_QUANTITY_UNIT) this._draftUnit = res.default_unit;
     } catch (_e) {
       // Units are non-critical; fall back to a bare default.
       this._units = [];
@@ -419,11 +387,13 @@ export class GroceryListCard extends LitElement {
                 class="gl-unit"
                 .value=${this._draftUnit}
                 @change=${(e: Event) =>
-                  (this._draftUnit = (e.target as HTMLSelectElement).value)}
+                  (this._draftUnit =
+                    this._asQuantityUnitId((e.target as HTMLSelectElement).value) ??
+                    this._defaultUnit)}
               >
                 ${this._units.map(
                   (u) => html`<option value=${u.id}>
-                    ${u.labels[this._lang] ?? u.labels.en ?? u.id}
+                    ${this._unitLabel(u.id)}
                   </option>`
                 )}
               </select>
@@ -563,7 +533,7 @@ export class GroceryListCard extends LitElement {
       : "";
     const quickQty = !!it.qty && this._canQuickAdjustQty(it.qty.unit);
     return html`
-      <li class="gl-item ${it.checked ? "checked" : ""}">
+      <li class="gl-item ${it.checked ? "checked" : ""}${qtyPulse}">
         <button
           class="gl-check ${it.checked ? "on" : ""}"
           @click=${() => this._api?.setChecked(slug, it.category, it.name, !it.checked)}
@@ -582,7 +552,7 @@ export class GroceryListCard extends LitElement {
           @pointercancel=${(e: PointerEvent) => this._handleQtyPointerCancel(e)}
         >
           <div class="gl-item-name">${it.name}</div>
-          ${qty ? html`<div class="gl-item-qty${qtyPulse}">${qty}</div>` : nothing}
+          ${qty ? html`<div class="gl-item-qty">${qty}</div>` : nothing}
         </div>
         <button
           class="gl-icon-btn"
@@ -642,11 +612,13 @@ export class GroceryListCard extends LitElement {
             class="gl-unit"
             .value=${this._editUnit}
             @change=${(e: Event) =>
-              (this._editUnit = (e.target as HTMLSelectElement).value)}
+              (this._editUnit =
+                this._asQuantityUnitId((e.target as HTMLSelectElement).value) ??
+                this._defaultUnit)}
           >
             ${this._units.map(
               (u) => html`<option value=${u.id}>
-                ${u.labels[this._lang] ?? u.labels.en ?? u.id}
+                ${this._unitLabel(u.id)}
               </option>`
             )}
           </select>
@@ -1085,9 +1057,18 @@ export class GroceryListCard extends LitElement {
   }
 
   private _unitLabel(id: string): string {
-    const u = this._units.find((x) => x.id === id);
+    const unitId = this._asQuantityUnitId(id);
+    const u = unitId ? this._units.find((x) => x.id === unitId) : undefined;
     if (!u) return id;
     return u.labels[this._lang] ?? u.labels.en ?? id;
+  }
+
+  private _asQuantityUnitId(unit: string | null | undefined): QuantityUnitId | undefined {
+    const normalized = unit?.trim().toLowerCase();
+    if (!normalized) return undefined;
+    return Object.values(QuantityUnitId).includes(normalized as QuantityUnitId)
+      ? (normalized as QuantityUnitId)
+      : undefined;
   }
 
   private _fmtNum(n: number): string {
@@ -1099,7 +1080,8 @@ export class GroceryListCard extends LitElement {
   }
 
   private _quickQtyStep(unit: string): number | undefined {
-    return QUICK_QTY_STEPS[unit.trim().toLowerCase()];
+    const unitId = this._asQuantityUnitId(unit);
+    return unitId ? QUICK_QTY_STEPS[unitId] : undefined;
   }
 
   private _roundQuickQty(value: number): number {
@@ -1135,14 +1117,14 @@ export class GroceryListCard extends LitElement {
     if (next !== swipe.previewValue) {
       const pulseKey = swipe.pulseKey + 1;
       this._qtySwipe = { ...swipe, previewValue: next, pulseKey };
-      const qtyEl = (e.currentTarget as HTMLElement).querySelector<HTMLElement>(
-        ".gl-item-qty"
-      );
+      const mainEl = e.currentTarget as HTMLElement;
+      const itemEl = mainEl.closest<HTMLElement>(".gl-item") ?? mainEl;
+      const qtyEl = mainEl.querySelector<HTMLElement>(".gl-item-qty");
       if (qtyEl) {
         qtyEl.textContent = `${this._fmtNum(next)} ${this._unitLabel(swipe.unit)}`;
-        qtyEl.classList.remove("gl-qty-pulse-0", "gl-qty-pulse-1");
-        void qtyEl.offsetWidth;
-        qtyEl.classList.add("gl-qty-pulse", `gl-qty-pulse-${pulseKey % 2}`);
+        itemEl.classList.remove("gl-qty-pulse-0", "gl-qty-pulse-1");
+        void itemEl.offsetWidth;
+        itemEl.classList.add("gl-qty-pulse", `gl-qty-pulse-${pulseKey % 2}`);
       }
       this.requestUpdate();
     }
@@ -1153,30 +1135,36 @@ export class GroceryListCard extends LitElement {
   private _handleQtyPointerEnd(e: PointerEvent): void {
     const swipe = this._qtySwipe;
     if (!swipe || swipe.pointerId !== e.pointerId) return;
-    this._releaseQtyPointer(e);
-    const didChange = swipe.previewValue !== swipe.startValue;
-    if (didChange) this._setQtyValue(swipe.slug, swipe.item, swipe.previewValue);
-    this._qtySwipe = undefined;
-    if (!didChange) this.requestUpdate();
+    try {
+      this._releaseQtyPointer(e);
+      const didChange = swipe.previewValue !== swipe.startValue;
+      if (didChange) this._setQtyValue(swipe.slug, swipe.item, swipe.previewValue);
+      if (!didChange) this.requestUpdate();
+    } finally {
+      this._qtySwipe = undefined;
+    }
   }
 
   private _handleQtyPointerCancel(e: PointerEvent): void {
     const swipe = this._qtySwipe;
     if (!swipe || swipe.pointerId !== e.pointerId) return;
-    this._releaseQtyPointer(e);
-    this._qtySwipe = undefined;
-    this.requestUpdate();
+    try {
+      this._releaseQtyPointer(e);
+      this.requestUpdate();
+    } finally {
+      this._qtySwipe = undefined;
+    }
   }
 
   private _releaseQtyPointer(e: PointerEvent): void {
     const target = e.currentTarget as HTMLElement;
-    if (target.hasPointerCapture(e.pointerId)) {
+    if (target?.hasPointerCapture?.(e.pointerId)) {
       target.releasePointerCapture(e.pointerId);
     }
   }
 
   private _setQtyValue(slug: string, it: Item, value: number): void {
-    if (!it.qty || this._quickQtyStep(it.qty.unit) === undefined) return;
+    if (!it.qty) return;
     void this._api?.updateItem(slug, it.category, it.name, {
       qty_value: value,
       qty_unit: it.qty.unit,
@@ -1199,7 +1187,7 @@ export class GroceryListCard extends LitElement {
     this._editingId = null;
     this._editValue = "";
     this._editQty = 0;
-    this._editUnit = "";
+    this._editUnit = this._defaultUnit;
     this._editCategory = null;
   }
 
@@ -1234,7 +1222,7 @@ export class GroceryListCard extends LitElement {
       new_name?: string;
       new_category?: string | null;
       qty_value?: number | null;
-      qty_unit?: string | null;
+      qty_unit?: QuantityUnitId | null;
     } = {};
     if (name !== it.name) changes.new_name = name;
     if (this._editCategory !== it.category)
