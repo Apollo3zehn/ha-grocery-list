@@ -100,7 +100,7 @@ export class GroceryListCard extends LitElement {
     slug: string;
     item: Item;
     pointerId: number;
-    captureTarget: HTMLElement;
+    mainEl: HTMLElement;
     cleanup: () => void;
     startX: number;
     startY: number;
@@ -550,11 +550,6 @@ export class GroceryListCard extends LitElement {
             : nothing}
           @pointerdown=${(e: PointerEvent) =>
             this._handleQtyPointerDown(e, slug, it)}
-          @pointermove=${(e: PointerEvent) => this._handleQtyPointerMove(e)}
-          @pointerup=${(e: PointerEvent) => this._handleQtyPointerEnd(e)}
-          @pointercancel=${(e: PointerEvent) => this._handleQtyPointerCancel(e)}
-          @lostpointercapture=${(e: PointerEvent) =>
-            this._handleQtyLostPointerCapture(e)}
         >
           <div class="gl-item-name">${it.name}</div>
           ${qty ? html`<div class="gl-item-qty">${qty}</div>` : nothing}
@@ -1099,21 +1094,30 @@ export class GroceryListCard extends LitElement {
     const unitStep = this._quickQtyStep(it.qty?.unit ?? "");
     if (e.button !== 0 || !it.qty || unitStep === undefined) return;
     this._cancelQtySwipe();
-    const captureTarget = e.currentTarget as HTMLElement;
+    // The swiped row (e.currentTarget) is used only to update the live preview
+    // text/pulse; it may be re-rendered mid-gesture. We deliberately do NOT use
+    // setPointerCapture here: capturing on a node that Lit later replaces during
+    // re-render can leave the pointer retargeted to a detached element, which
+    // silently swallows every subsequent click on the card. Instead we drive the
+    // whole gesture from window-level listeners and clean them up on end.
+    const mainEl = e.currentTarget as HTMLElement;
     const win = this.ownerDocument.defaultView;
+    const onPointerMove = (ev: PointerEvent) => this._handleQtyPointerMove(ev);
     const onPointerUp = (ev: PointerEvent) => this._handleQtyPointerEnd(ev);
     const onPointerCancel = (ev: PointerEvent) => this._handleQtyPointerCancel(ev);
     const cleanup = () => {
+      win?.removeEventListener("pointermove", onPointerMove, true);
       win?.removeEventListener("pointerup", onPointerUp, true);
       win?.removeEventListener("pointercancel", onPointerCancel, true);
     };
+    win?.addEventListener("pointermove", onPointerMove, true);
     win?.addEventListener("pointerup", onPointerUp, true);
     win?.addEventListener("pointercancel", onPointerCancel, true);
     this._qtySwipe = {
       slug,
       item: it,
       pointerId: e.pointerId,
-      captureTarget,
+      mainEl,
       cleanup,
       startX: e.clientX,
       startY: e.clientY,
@@ -1122,7 +1126,6 @@ export class GroceryListCard extends LitElement {
       unit: it.qty.unit,
       pulseKey: 0,
     };
-    captureTarget.setPointerCapture(e.pointerId);
   }
 
   private _handleQtyPointerMove(e: PointerEvent): void {
@@ -1137,7 +1140,7 @@ export class GroceryListCard extends LitElement {
     if (next !== swipe.previewValue) {
       const pulseKey = swipe.pulseKey + 1;
       this._qtySwipe = { ...swipe, previewValue: next, pulseKey };
-      const mainEl = e.currentTarget as HTMLElement;
+      const mainEl = swipe.mainEl;
       const itemEl = mainEl.closest<HTMLElement>(".gl-item") ?? mainEl;
       const qtyEl = mainEl.querySelector<HTMLElement>(".gl-item-qty");
       if (qtyEl) {
@@ -1168,22 +1171,11 @@ export class GroceryListCard extends LitElement {
     this.requestUpdate();
   }
 
-  private _handleQtyLostPointerCapture(e: PointerEvent): void {
-    const swipe = this._qtySwipe;
-    if (!swipe || swipe.pointerId !== e.pointerId) return;
-    swipe.cleanup();
-    this._qtySwipe = undefined;
-    this.requestUpdate();
-  }
-
   private _cancelQtySwipe(): void {
     const swipe = this._qtySwipe;
     if (!swipe) return;
     this._qtySwipe = undefined;
     swipe.cleanup();
-    if (swipe.captureTarget.hasPointerCapture?.(swipe.pointerId)) {
-      swipe.captureTarget.releasePointerCapture(swipe.pointerId);
-    }
   }
 
   private _setQtyValue(slug: string, it: Item, value: number): void {
