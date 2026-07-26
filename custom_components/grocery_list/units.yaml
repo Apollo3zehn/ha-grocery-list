@@ -11,8 +11,8 @@ units:
         one: pc
         other: pcs
       de:
-        one: Stk
-        other: Stk
+        one: Stück
+        other: Stück
   - id: g
     labels:
       en: g

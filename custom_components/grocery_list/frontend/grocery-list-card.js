@@ -372,7 +372,7 @@ function e(e,t,i,n){var r,s=arguments.length,a=s<3?t:null===n?n=Object.getOwnPro
 
   .gl-footer {
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
     margin-top: 4px;
   }
   .gl-clear-btn {

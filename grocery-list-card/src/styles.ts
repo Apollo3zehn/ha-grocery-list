@@ -378,7 +378,7 @@ export const cardStyles = css`
 
   .gl-footer {
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
     margin-top: 4px;
   }
   .gl-clear-btn {
