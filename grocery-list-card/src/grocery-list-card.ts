@@ -126,6 +126,7 @@ export class GroceryListCard extends LitElement {
   private _api?: GroceryApi;
   private _unsub?: () => Promise<void>;
   private _subscribedEntry?: string;
+  @state()
   private _qtySwipe?: {
     slug: string;
     item: Item;
@@ -1127,8 +1128,11 @@ export class GroceryListCard extends LitElement {
     const step = unitStep !== undefined && isHorizontalSwipe ? Math.trunc(dx / 32) : 0;
     const next = this._roundQuickQty(swipe.startValue + step * (unitStep ?? 0));
     if (next !== swipe.previewValue) {
-      swipe.previewValue = next;
-      this.requestUpdate();
+      this._qtySwipe = { ...swipe, previewValue: next };
+      const qtyEl = (e.currentTarget as HTMLElement).querySelector<HTMLElement>(
+        ".gl-item-qty"
+      );
+      if (qtyEl) qtyEl.textContent = `${this._fmtNum(next)} ${this._unitLabel(swipe.unit)}`;
     }
     if (!isHorizontalSwipe) return;
     e.preventDefault();
