@@ -8,6 +8,7 @@ export enum QuantityUnitId {
   Kg = "kg",
   Ml = "ml",
   L = "l",
+  Jar = "jar",
   Pack = "pack",
   Bottle = "bottle",
   Can = "can",
@@ -66,10 +67,12 @@ export type SyncState =
   | "error"
   | "local";
 
+export type UnitLabel = string | { one: string; other: string };
+
 export interface Unit {
   id: QuantityUnitId;
   default: boolean;
-  labels: Record<string, string>;
+  labels: Record<string, UnitLabel>;
 }
 
 export interface GetUnitsResult {

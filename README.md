@@ -59,7 +59,7 @@ The card is the main way you interact with your lists:
 
 ### Structured quantities
 
-Items can carry a quantity (value + unit). Built-in units include **pcs, g, kg, ml, L, pack, bottle, can, bunch**, each localized. Quantities render inline in the Markdown as a `×2 kg` suffix.
+Items can carry a quantity (value + unit). Built-in units include **pcs, g, kg, ml, L, jar, pack, bottle, can, bunch**, each localized. Quantity labels use singular/plural forms where available, and quantities render inline in the Markdown as a `×2 kg` suffix.
 
 ### Categories
 

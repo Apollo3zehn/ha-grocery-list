@@ -26,6 +26,7 @@ const QUICK_QTY_STEPS: Record<QuantityUnitId, number> = {
   [QuantityUnitId.Kg]: 0.5,
   [QuantityUnitId.Ml]: 50,
   [QuantityUnitId.L]: 0.05,
+  [QuantityUnitId.Jar]: 1,
   [QuantityUnitId.Pack]: 1,
   [QuantityUnitId.Bottle]: 1,
   [QuantityUnitId.Can]: 1,
@@ -526,7 +527,7 @@ export class GroceryListCard extends LitElement {
         ? swipe.previewValue
         : it.qty?.value;
     const qty = it.qty
-      ? `${this._fmtNum(qtyValue ?? it.qty.value)} ${this._unitLabel(it.qty.unit)}`
+      ? `${this._fmtNum(qtyValue ?? it.qty.value)} ${this._unitLabel(it.qty.unit, qtyValue ?? it.qty.value)}`
       : "";
     const qtyPulse = swipe?.slug === slug && itemKey(swipe.item) === itemKey(it) && swipe.pulseKey
       ? ` gl-qty-pulse gl-qty-pulse-${swipe.pulseKey % 2}`
@@ -718,7 +719,7 @@ export class GroceryListCard extends LitElement {
     t: (k: string) => string
   ): TemplateResult {
     const qty = a.item.qty
-      ? `${this._fmtNum(a.item.qty.value)} ${this._unitLabel(a.item.qty.unit)}`
+      ? `${this._fmtNum(a.item.qty.value)} ${this._unitLabel(a.item.qty.unit, a.item.qty.value)}`
       : "";
     return html`
       <li class="gl-archive-row">
@@ -1056,11 +1057,13 @@ export class GroceryListCard extends LitElement {
     `;
   }
 
-  private _unitLabel(id: string): string {
+  private _unitLabel(id: string, value?: number): string {
     const unitId = this._asQuantityUnitId(id);
     const u = unitId ? this._units.find((x) => x.id === unitId) : undefined;
-    if (!u) return id;
-    return u.labels[this._lang] ?? u.labels.en ?? id;
+    const label = u?.labels[this._lang] ?? u?.labels.en;
+    if (!label) return id;
+    if (typeof label === "string") return label;
+    return value === undefined || value === 1 ? label.one : label.other;
   }
 
   private _asQuantityUnitId(unit: string | null | undefined): QuantityUnitId | undefined {
@@ -1121,7 +1124,7 @@ export class GroceryListCard extends LitElement {
       const itemEl = mainEl.closest<HTMLElement>(".gl-item") ?? mainEl;
       const qtyEl = mainEl.querySelector<HTMLElement>(".gl-item-qty");
       if (qtyEl) {
-        qtyEl.textContent = `${this._fmtNum(next)} ${this._unitLabel(swipe.unit)}`;
+        qtyEl.textContent = `${this._fmtNum(next)} ${this._unitLabel(swipe.unit, next)}`;
         itemEl.classList.remove("gl-qty-pulse-0", "gl-qty-pulse-1");
         void itemEl.offsetWidth;
         itemEl.classList.add("gl-qty-pulse", `gl-qty-pulse-${pulseKey % 2}`);

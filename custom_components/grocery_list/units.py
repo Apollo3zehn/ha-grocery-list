@@ -27,7 +27,8 @@ _UNITS_FILE = os.path.join(os.path.dirname(__file__), "units.yaml")
 def load_units() -> list[dict[str, Any]]:
     """Load and cache the unit definitions as a list of plain dicts.
 
-    Each entry is ``{"id": str, "default": bool, "labels": {locale: str}}``.
+    Each entry is ``{"id": str, "default": bool, "labels": {locale: label}}``;
+    a label is either a string or ``{"one": str, "other": str}``.
     Malformed or missing files yield an empty list rather than raising, so the
     card degrades gracefully (it can still add items without a unit).
     """
