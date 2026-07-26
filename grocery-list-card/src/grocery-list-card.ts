@@ -105,7 +105,7 @@ export class GroceryListCard extends LitElement {
     startY: number;
     startValue: number;
     previewValue: number;
-    unit: string;
+    unit: QuantityUnitId;
     pulseKey: number;
   };
 
@@ -520,20 +520,18 @@ export class GroceryListCard extends LitElement {
       return html`<li class="gl-item">${this._renderEdit(it, slug, t)}</li>`;
     }
     const swipe = this._qtySwipe;
-    const qtyValue =
-      it.qty &&
-      swipe?.slug === slug &&
-      itemKey(swipe.item) === itemKey(it) &&
-      swipe.unit === it.qty.unit
-        ? swipe.previewValue
-        : it.qty?.value;
-    const qty = it.qty
-      ? `${this._fmtNum(qtyValue ?? it.qty.value)} ${this._unitLabel(it.qty.unit, qtyValue ?? it.qty.value)}`
-      : "";
+    const isSwipingItem =
+      swipe?.slug === slug && itemKey(swipe.item) === itemKey(it);
+    const qtyValue = isSwipingItem ? swipe.previewValue : it.qty?.value;
+    const qtyUnit = isSwipingItem ? swipe.unit : it.qty?.unit;
+    const qty =
+      qtyValue !== undefined && qtyUnit
+        ? `${this._fmtNum(qtyValue)} ${this._unitLabel(qtyUnit, qtyValue)}`
+        : "";
     const qtyPulse = swipe?.slug === slug && itemKey(swipe.item) === itemKey(it) && swipe.pulseKey
       ? ` gl-qty-pulse gl-qty-pulse-${swipe.pulseKey % 2}`
       : "";
-    const quickQty = !!it.qty && this._canQuickAdjustQty(it.qty.unit);
+    const quickQty = this._canQuickAdjustQty(it.qty?.unit ?? this._defaultUnit);
     return html`
       <li class="gl-item ${it.checked ? "checked" : ""}${qtyPulse}">
         <button
@@ -1089,9 +1087,18 @@ export class GroceryListCard extends LitElement {
     return Math.max(0, Math.round(value * 100) / 100);
   }
 
+  private _nextQuickQty(value: number, step: number, steps: number): number {
+    if (step <= 0 || steps === 0) return this._roundQuickQty(value);
+    const ratio = value / step;
+    const nextRatio =
+      steps > 0 ? Math.floor(ratio + 1e-9) + steps : Math.ceil(ratio - 1e-9) + steps;
+    return this._roundQuickQty(nextRatio * step);
+  }
+
   private _handleQtyPointerDown(e: PointerEvent, slug: string, it: Item): void {
-    const unitStep = this._quickQtyStep(it.qty?.unit ?? "");
-    if (e.button !== 0 || !it.qty || unitStep === undefined) return;
+    const unit = this._asQuantityUnitId(it.qty?.unit) ?? this._defaultUnit;
+    const unitStep = this._quickQtyStep(unit);
+    if (e.button !== 0 || unitStep === undefined) return;
     this._cancelQtySwipe();
     // The swiped row (e.currentTarget) is used only to update the live preview
     // text/pulse; it may be re-rendered mid-gesture. We deliberately do NOT use
@@ -1120,7 +1127,7 @@ export class GroceryListCard extends LitElement {
       startY: e.clientY,
       startValue: it.qty?.value ?? 0,
       previewValue: it.qty?.value ?? 0,
-      unit: it.qty.unit,
+      unit,
       pulseKey: 0,
     };
   }
@@ -1132,8 +1139,8 @@ export class GroceryListCard extends LitElement {
     const dy = e.clientY - swipe.startY;
     const unitStep = this._quickQtyStep(swipe.unit);
     const isHorizontalSwipe = Math.abs(dx) >= 32 && Math.abs(dx) > Math.abs(dy);
-    const step = unitStep !== undefined && isHorizontalSwipe ? Math.trunc(dx / 32) : 0;
-    const next = this._roundQuickQty(swipe.startValue + step * (unitStep ?? 0));
+    const steps = unitStep !== undefined && isHorizontalSwipe ? Math.trunc(dx / 32) : 0;
+    const next = this._nextQuickQty(swipe.startValue, unitStep ?? 0, steps);
     if (next !== swipe.previewValue) {
       const pulseKey = swipe.pulseKey + 1;
       // Update reactive state only. Lit owns the .gl-item-qty text and the row's
@@ -1172,10 +1179,9 @@ export class GroceryListCard extends LitElement {
   }
 
   private _setQtyValue(slug: string, it: Item, value: number): void {
-    if (!it.qty) return;
     void this._api?.updateItem(slug, it.category, it.name, {
       qty_value: value,
-      qty_unit: it.qty.unit,
+      qty_unit: this._asQuantityUnitId(it.qty?.unit) ?? this._defaultUnit,
     });
   }
 
