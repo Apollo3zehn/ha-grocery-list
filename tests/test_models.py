@@ -69,3 +69,10 @@ def test_grocerylist_item_by_key_and_roundtrip():
     assert glist.item_by_key("Dairy", "Nope") is None
     restored = GroceryList.from_dict(glist.to_dict())
     assert restored == glist
+
+
+def test_quantity_value_clamps_to_minimum_one():
+    """Quantity values below the supported minimum are clamped."""
+    qty = Quantity(value=0, unit="pcs")
+
+    assert qty.value == 1

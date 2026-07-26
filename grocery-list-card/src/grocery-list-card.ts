@@ -52,7 +52,7 @@ export class GroceryListCard extends LitElement {
   @state() private _activeSlug?: string;
   @state() private _editingId: string | null = null;
   @state() private _editValue = "";
-  @state() private _editQty = 0;
+  @state() private _editQty = 1;
   @state() private _editUnit = DEFAULT_QUANTITY_UNIT;
   @state() private _editCategory: string | null = null;
 
@@ -378,10 +378,11 @@ export class GroceryListCard extends LitElement {
                 <button @click=${() => this._bumpQty(-1)}>\u2212</button>
                 <input
                   type="number"
+                  min="1"
                   .value=${String(this._draftQty)}
                   @input=${(e: Event) =>
                     (this._draftQty =
-                      parseFloat((e.target as HTMLInputElement).value) || 0)}
+                      Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 1))}
                 />
                 <button @click=${() => this._bumpQty(1)}>+</button>
               </div>
@@ -598,10 +599,11 @@ export class GroceryListCard extends LitElement {
             <button @click=${() => this._bumpEditQty(-1)}>\u2212</button>
             <input
               type="number"
+              min="1"
               .value=${String(this._editQty)}
               @input=${(e: Event) =>
                 (this._editQty =
-                  parseFloat((e.target as HTMLInputElement).value) || 0)}
+                  Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 1))}
             />
             <button @click=${() => this._bumpEditQty(1)}>+</button>
           </div>
@@ -1084,7 +1086,7 @@ export class GroceryListCard extends LitElement {
   }
 
   private _roundQuickQty(value: number): number {
-    return Math.max(0, Math.round(value * 100) / 100);
+    return Math.max(1, Math.round(value * 100) / 100);
   }
 
   private _nextQuickQty(value: number, step: number, steps: number): number {
@@ -1125,8 +1127,8 @@ export class GroceryListCard extends LitElement {
       cleanup,
       startX: e.clientX,
       startY: e.clientY,
-      startValue: it.qty?.value ?? 0,
-      previewValue: it.qty?.value ?? 0,
+      startValue: it.qty?.value ?? 1,
+      previewValue: it.qty?.value ?? 1,
       unit,
       pulseKey: 0,
     };
@@ -1180,19 +1182,19 @@ export class GroceryListCard extends LitElement {
 
   private _setQtyValue(slug: string, it: Item, value: number): void {
     void this._api?.updateItem(slug, it.category, it.name, {
-      qty_value: value,
+      qty_value: Math.max(1, value),
       qty_unit: this._asQuantityUnitId(it.qty?.unit) ?? this._defaultUnit,
     });
   }
 
   private _bumpQty(delta: number): void {
-    this._draftQty = Math.max(0, Math.round((this._draftQty + delta) * 100) / 100);
+    this._draftQty = Math.max(1, Math.round((this._draftQty + delta) * 100) / 100);
   }
 
   private _beginEdit(it: Item): void {
     this._editingId = itemKey(it);
     this._editValue = it.name;
-    this._editQty = it.qty?.value ?? 0;
+    this._editQty = it.qty?.value ?? 1;
     this._editUnit = this._asQuantityUnitId(it.qty?.unit) ?? this._defaultUnit;
     this._editCategory = it.category;
   }
@@ -1200,13 +1202,13 @@ export class GroceryListCard extends LitElement {
   private _cancelEdit(): void {
     this._editingId = null;
     this._editValue = "";
-    this._editQty = 0;
+    this._editQty = 1;
     this._editUnit = this._defaultUnit;
     this._editCategory = null;
   }
 
   private _bumpEditQty(delta: number): void {
-    this._editQty = Math.max(0, Math.round((this._editQty + delta) * 100) / 100);
+    this._editQty = Math.max(1, Math.round((this._editQty + delta) * 100) / 100);
   }
 
   private async _deleteItemConfirm(
@@ -1241,9 +1243,9 @@ export class GroceryListCard extends LitElement {
     if (name !== it.name) changes.new_name = name;
     if (this._editCategory !== it.category)
       changes.new_category = this._editCategory;
-    const newQty = this._editQty || null;
+    const newQty = Math.max(1, this._editQty || 1);
     const oldQty = it.qty?.value ?? null;
-    const newUnit = newQty ? this._editUnit || this._defaultUnit : null;
+    const newUnit = this._editUnit || this._defaultUnit;
     const oldUnit = it.qty?.unit ?? null;
     if (newQty !== oldQty || newUnit !== oldUnit) {
       changes.qty_value = newQty;
@@ -1261,8 +1263,8 @@ export class GroceryListCard extends LitElement {
     const slug = this._targetSlug();
     void this._api.addItem(slug, name, {
       category: this._draftCategory,
-      qty_value: this._draftQty || null,
-      qty_unit: this._draftQty ? this._draftUnit || this._defaultUnit : null,
+      qty_value: Math.max(1, this._draftQty || 1),
+      qty_unit: this._draftUnit || this._defaultUnit,
     });
     // Ensure the newly-created list becomes the active one.
     this._activeSlug = slug;

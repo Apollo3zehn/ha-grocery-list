@@ -106,3 +106,10 @@ def test_empty_list_serialize_parse():
     parsed = parse(serialize(glist))
     assert parsed.title == "Empty"
     assert parsed.items == []
+
+
+def test_parse_clamps_zero_quantity_to_one():
+    """Markdown quantities below the minimum are clamped by the model."""
+    parsed = parse("# Rewe\n\n## Fruit\n- [ ] Apples ×0 pcs\n")
+
+    assert parsed.items[0].qty == Quantity(1, "pcs")

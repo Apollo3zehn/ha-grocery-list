@@ -44,6 +44,10 @@ class Quantity:
     value: float
     unit: str
 
+    def __post_init__(self) -> None:
+        if self.value < 1:
+            object.__setattr__(self, "value", 1)
+
     def to_dict(self) -> dict:
         return {"value": self.value, "unit": self.unit}
 
