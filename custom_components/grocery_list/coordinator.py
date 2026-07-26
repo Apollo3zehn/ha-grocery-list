@@ -849,6 +849,11 @@ class GroceryCoordinator:
                     item.qty.unit if item.qty else "pcs"
                 )
                 item.qty = Quantity(value=value, unit=unit)
+        elif "qty_unit" in changes and item.qty is not None:
+            item.qty = Quantity(value=item.qty.value, unit=changes["qty_unit"])
+        after = item.to_dict()
+        if after == before:
+            return item
         self._record_and_schedule(
             make_action_op(
                 identity=self.identity,
@@ -856,7 +861,7 @@ class GroceryCoordinator:
                 scope=slug,
                 target_id=item.key,
                 before=before,
-                after=item.to_dict(),
+                after=after,
                 label="update_item",
             )
         )
