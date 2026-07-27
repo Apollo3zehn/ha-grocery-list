@@ -116,6 +116,8 @@ export class GroceryListCard extends LitElement {
     unit: QuantityUnitId;
     clearTimer: number;
   };
+  @state() private _historyPulse?: { slug: string; key: string; pulseKey: number };
+  private _historySnapshotBefore?: Snapshot;
 
   setConfig(config: GroceryCardConfig): void {
     // Do NOT throw on a missing entry_id: the Lovelace card picker instantiates
@@ -172,7 +174,10 @@ export class GroceryListCard extends LitElement {
 
   protected updated(changed: PropertyValues): void {
     if (changed.has("hass")) this._maybeSubscribe();
-    if (changed.has("_snapshot")) this._reconcilePendingQty();
+    if (changed.has("_snapshot")) {
+      this._reconcilePendingQty();
+      this._pulseHistoryChange();
+    }
   }
 
   private get _lang(): string {
@@ -284,13 +289,13 @@ export class GroceryListCard extends LitElement {
             class="gl-icon-btn"
             title=${t("undo")}
             ?disabled=${!snap.can_undo}
-            @click=${() => this._api?.undo()}
+            @click=${() => this._handleHistoryAction("undo")}
           >\u21b6</button>
           <button
             class="gl-icon-btn"
             title=${t("redo")}
             ?disabled=${!snap.can_redo}
-            @click=${() => this._api?.redo()}
+            @click=${() => this._handleHistoryAction("redo")}
           >\u21b7</button>
           ${gitConfigured
             ? html`<button
@@ -549,9 +554,12 @@ export class GroceryListCard extends LitElement {
       qtyValue !== undefined && qtyUnit
         ? this._formatQuantity(qtyValue, qtyUnit)
         : "";
+    const historyPulse = this._historyPulse;
     const qtyPulse = swipe?.slug === slug && itemKey(swipe.item) === itemKey(it) && swipe.pulseKey
       ? ` gl-qty-pulse gl-qty-pulse-${swipe.pulseKey % 2}`
-      : "";
+      : historyPulse?.slug === slug && historyPulse.key === itemKey(it)
+        ? ` gl-qty-pulse gl-qty-pulse-${historyPulse.pulseKey % 2}`
+        : "";
     const quickQty = this._canQuickAdjustQty(it.qty?.unit ?? this._defaultUnit);
     return html`
       <li class="gl-item ${it.checked ? "checked" : ""}${qtyPulse}">
@@ -1123,6 +1131,62 @@ export class GroceryListCard extends LitElement {
     const nextRatio =
       steps > 0 ? Math.floor(ratio + 1e-9) + steps : Math.ceil(ratio - 1e-9) + steps;
     return this._roundQuickQty(nextRatio * step);
+  }
+
+  private async _handleHistoryAction(action: "undo" | "redo"): Promise<void> {
+    if (!this._api) return;
+    this._historySnapshotBefore = this._snapshot;
+    const changed = action === "undo"
+      ? (await this._api.undo()).undone
+      : (await this._api.redo()).redone;
+    if (!changed) {
+      this._historySnapshotBefore = undefined;
+      return;
+    }
+    this._pulseHistoryChange();
+  }
+
+  private _pulseHistoryChange(): void {
+    const before = this._historySnapshotBefore;
+    const after = this._snapshot;
+    if (!before || !after || before === after) return;
+    const target = this._findHistoryPulseTarget(before, after);
+    this._historySnapshotBefore = undefined;
+    if (!target) return;
+    this._historyPulse = {
+      slug: target.slug,
+      key: target.key,
+      pulseKey: (this._historyPulse?.pulseKey ?? 0) + 1,
+    };
+  }
+
+  private _findHistoryPulseTarget(
+    before: Snapshot,
+    after: Snapshot
+  ): { slug: string; key: string } | undefined {
+    const beforeItems = new Map<string, string>();
+    for (const list of before.lists) {
+      for (const item of list.items) {
+        beforeItems.set(
+          `${list.slug}\u0000${itemKey(item)}`,
+          this._historyPulseFingerprint(item)
+        );
+      }
+    }
+    for (const list of after.lists) {
+      for (const item of list.items) {
+        const id = `${list.slug}\u0000${itemKey(item)}`;
+        const previous = beforeItems.get(id);
+        if (previous === undefined || previous !== this._historyPulseFingerprint(item)) {
+          return { slug: list.slug, key: itemKey(item) };
+        }
+      }
+    }
+    return undefined;
+  }
+
+  private _historyPulseFingerprint(item: Item): string {
+    return JSON.stringify(item);
   }
 
   private _handleQtyPointerDown(e: PointerEvent, slug: string, it: Item): void {

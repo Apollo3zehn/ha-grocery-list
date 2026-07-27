@@ -348,11 +348,17 @@ export const cardStyles = css`
     padding: 1px 5px;
     margin: -1px -5px;
   }
-  .gl-item.gl-qty-pulse-0,
-  .gl-item.gl-qty-pulse-1 {
-    animation: gl-qty-pulse 420ms ease-out;
+  .gl-item.gl-qty-pulse-0 {
+    animation: gl-qty-pulse-0 420ms ease-out;
   }
-  @keyframes gl-qty-pulse {
+  .gl-item.gl-qty-pulse-1 {
+    animation: gl-qty-pulse-1 420ms ease-out;
+  }
+  @keyframes gl-qty-pulse-0 {
+    0%, 100% { background-color: transparent; }
+    45% { background-color: color-mix(in srgb, var(--gl-accent) 18%, transparent); }
+  }
+  @keyframes gl-qty-pulse-1 {
     0%, 100% { background-color: transparent; }
     45% { background-color: color-mix(in srgb, var(--gl-accent) 18%, transparent); }
   }
