@@ -620,7 +620,9 @@ export class GroceryListCard extends LitElement {
             class="gl-icon-btn gl-danger"
             title=${t("delete")}
             @click=${() => this._deleteItemConfirm(slug, it, t)}
-          >Del</button>
+          >
+            <ha-icon icon="mdi:trash-can-outline"></ha-icon>
+          </button>
         </div>
         <div class="gl-qtyrow">
           <div class="gl-stepper">
@@ -1403,19 +1405,21 @@ export class GroceryListCard extends LitElement {
     this._cancelEdit();
   }
 
-  private _commitAdd(): void {
+  private async _commitAdd(): Promise<void> {
     const name = this._draftName.trim();
     if (!name || !this._api) return;
     const slug = this._targetSlug();
-    void this._api.addItem(slug, name, {
+    await this._api.addItem(slug, name, {
       category: this._draftCategory,
       qty_value: Math.max(1, this._draftQty || 1),
       qty_unit: this._draftUnit || this._defaultUnit,
     });
     // Ensure the newly-created list becomes the active one.
     this._activeSlug = slug;
-    // Reset the name but keep qty/unit/category for fast repeated entry.
+    // Reset one-off fields so the next quick-add starts from safe defaults.
     this._draftName = "";
+    this._draftQty = 1;
+    this._draftCategory = null;
     this._addOpen = false;
   }
 
