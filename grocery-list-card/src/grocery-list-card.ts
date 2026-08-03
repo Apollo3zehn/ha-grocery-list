@@ -1419,6 +1419,7 @@ export class GroceryListCard extends LitElement {
     // Reset one-off fields so the next quick-add starts from safe defaults.
     this._draftName = "";
     this._draftQty = 1;
+    this._draftUnit = this._defaultUnit;
     this._draftCategory = null;
     this._addOpen = false;
   }
